@@ -3,10 +3,31 @@ import pandas as pd
 import numpy as np
 import random
 import player_management as pm
+import player_matching as match
 
 def distribute_players(players_df):
     """
-    Distribute players randomly across courts
+    Distribute players across courts based on selected strategy
+    
+    Parameters:
+    - players_df: DataFrame with player information
+    
+    Returns:
+    - List of courts with player allocations
+    """
+    # Проверяем, какую стратегию подбора игроков выбрал пользователь
+    matchmaking_strategy = st.session_state.get('matchmaking_strategy', 'Случайное распределение')
+    
+    if matchmaking_strategy == 'Сбалансированные команды по навыкам':
+        # Используем продвинутый алгоритм подбора на основе навыков
+        return match.get_skill_based_courts(players_df)
+    else:
+        # Используем случайное распределение игроков (оригинальный метод)
+        return random_distribute_players(players_df)
+
+def random_distribute_players(players_df):
+    """
+    Distribute players randomly across courts (original algorithm)
     
     Parameters:
     - players_df: DataFrame with player information
@@ -89,6 +110,31 @@ def display_courts(courts, players_df):
                             st.subheader(f"Rest Court {court['court_number']}")
                         else:
                             st.subheader(f"Court {court['court_number']}")
+                            
+                            # Если выбран алгоритм сбалансированных команд, показываем информацию о балансе
+                            if st.session_state.get('matchmaking_strategy', '') == 'Сбалансированные команды по навыкам':
+                                # Рассчитываем баланс команд
+                                team_a_rating = sum(players_df.loc[players_df['id'] == player_id, 'rating'].values[0] 
+                                                  for player_id in court['team_a'])
+                                team_b_rating = sum(players_df.loc[players_df['id'] == player_id, 'rating'].values[0] 
+                                                  for player_id in court['team_b'])
+                                
+                                # Разница в рейтинге
+                                rating_diff = abs(team_a_rating - team_b_rating)
+                                
+                                # Определяем цвет на основе разницы
+                                if rating_diff < 0.5:
+                                    balance_color = "green"
+                                    balance_text = "Отличный баланс"
+                                elif rating_diff < 1.5:
+                                    balance_color = "orange"
+                                    balance_text = "Хороший баланс"
+                                else:
+                                    balance_color = "red"
+                                    balance_text = "Дисбаланс"
+                                
+                                # Отображаем информацию о балансе
+                                st.markdown(f'<span style="color:{balance_color};font-size:small;">{balance_text} (разница: {rating_diff:.2f})</span>', unsafe_allow_html=True)
                         
                         # Display teams
                         if not court['is_rest']:
@@ -101,13 +147,19 @@ def display_courts(courts, players_df):
                             # Используем HTML для размещения счета рядом с именем игрока
                             st.markdown("**Team A**")
                             
-                            # Игроки команды A
-                            if team_a_names:
-                                st.write(f"- {team_a_names[0]}")
+                            # Проверяем, нужно ли отображать рейтинги
+                            show_ratings = st.session_state.get('matchmaking_strategy', '') == 'Сбалансированные команды по навыкам'
                             
-                            # Второй игрок команды A
-                            if len(team_a_names) > 1:
-                                st.write(f"- {team_a_names[1]}")
+                            # Игроки команды A
+                            for i, player_id in enumerate(court['team_a']):
+                                if i < len(team_a_names):
+                                    player_name = team_a_names[i]
+                                    if show_ratings:
+                                        # Получаем рейтинг игрока
+                                        player_rating = players_df.loc[players_df['id'] == player_id, 'rating'].values[0]
+                                        st.write(f"- {player_name} *(рейтинг: {player_rating:.2f})*")
+                                    else:
+                                        st.write(f"- {player_name}")
                                 
                             # Счет команды A отдельно
                             team_a_score = st.number_input(
@@ -120,13 +172,16 @@ def display_courts(courts, players_df):
                             # Команда B
                             st.markdown("**Team B**")
                             
-                            # Первый игрок команды B
-                            if team_b_names:
-                                st.write(f"- {team_b_names[0]}")
-                            
-                            # Второй игрок команды B со счетом
-                            if len(team_b_names) > 1:
-                                st.write(f"- {team_b_names[1]}")
+                            # Игроки команды B
+                            for i, player_id in enumerate(court['team_b']):
+                                if i < len(team_b_names):
+                                    player_name = team_b_names[i]
+                                    if show_ratings:
+                                        # Получаем рейтинг игрока
+                                        player_rating = players_df.loc[players_df['id'] == player_id, 'rating'].values[0]
+                                        st.write(f"- {player_name} *(рейтинг: {player_rating:.2f})*")
+                                    else:
+                                        st.write(f"- {player_name}")
                                 
                             # Счет команды B отдельно
                             team_b_score = st.number_input(
@@ -209,15 +264,29 @@ def rotate_players():
     """
     Rotate players between courts after a game
     
-    This implements a rotation strategy where players move from one court to the next,
-    and players from the last court move to the rest court (if any),
-    and players from the rest court move to the first court.
+    This implements a rotation strategy based on the selected matchmaking approach.
     """
     if not st.session_state.courts:
         return
     
+    # Проверяем, какую стратегию подбора игроков выбрал пользователь
+    matchmaking_strategy = st.session_state.get('matchmaking_strategy', 'Случайное распределение')
+    
+    if matchmaking_strategy == 'Сбалансированные команды по навыкам':
+        # Используем оптимизированную ротацию на основе навыков
+        st.session_state.courts = match.get_optimized_rotation(
+            st.session_state.courts, 
+            st.session_state.players_df
+        )
+    else:
+        # Используем случайную ротацию (оригинальный метод)
+        random_rotate_players()
+
+def random_rotate_players():
+    """
+    Rotate players randomly between courts after a game (original method)
+    """
     courts = st.session_state.courts
-    num_courts = len(courts)
     
     # Collect all player IDs
     all_players = []

@@ -7,6 +7,7 @@ import player_management as pm
 import court_allocation as ca
 import timer as tm
 import tournament as tr
+import player_matching as match
 
 # Set page configuration
 st.set_page_config(
@@ -66,6 +67,10 @@ if 'pause_time' not in st.session_state:
 if 'elapsed_pause_time' not in st.session_state:
     st.session_state.elapsed_pause_time = 0
 
+# Инициализируем настройки для алгоритма подбора игроков
+if 'matchmaking_strategy' not in st.session_state:
+    st.session_state.matchmaking_strategy = 'Случайное распределение'
+
 # Main application layout
 st.title("Rotation Players")
 
@@ -79,6 +84,30 @@ with tab1:
     with col1:
         # Display courts with players
         st.header("Courts")
+        
+        # Добавляем раздел настроек подбора игроков
+        with st.expander("Настройки подбора игроков"):
+            st.session_state.matchmaking_strategy = st.radio(
+                "Выберите стратегию распределения игроков:",
+                ["Случайное распределение", "Сбалансированные команды по навыкам"]
+            )
+            
+            if st.session_state.matchmaking_strategy == "Сбалансированные команды по навыкам":
+                st.info("""
+                    **Описание алгоритма:** 
+                    Этот алгоритм распределяет игроков на основе их рейтинга для создания 
+                    максимально сбалансированных команд. Игроки с высоким рейтингом 
+                    распределяются между кортами методом "змейки", чтобы обеспечить их 
+                    равномерное распределение. Затем внутри каждого корта игроки делятся 
+                    на команды так, чтобы минимизировать разницу в суммарном рейтинге команд.
+                """)
+            else:
+                st.info("""
+                    **Описание алгоритма:** 
+                    Случайное распределение игроков по кортам без учета рейтинга.
+                """)
+        
+        # Отображение кортов
         if st.session_state.courts:
             ca.display_courts(st.session_state.courts, st.session_state.players_df)
         else:
