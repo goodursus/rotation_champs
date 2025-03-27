@@ -10,6 +10,12 @@ def start_game():
     st.session_state.game_paused = False
     st.session_state.start_time = datetime.now()
     st.session_state.elapsed_pause_time = 0
+    
+    # Обновляем время последнего обновления и включаем принудительное обновление
+    if 'last_update_time' in st.session_state:
+        st.session_state.last_update_time = time.time()
+    if 'force_refresh' in st.session_state:
+        st.session_state.force_refresh = True
 
 def pause_game():
     """
@@ -18,6 +24,10 @@ def pause_game():
     if st.session_state.game_active and not st.session_state.game_paused:
         st.session_state.game_paused = True
         st.session_state.pause_time = datetime.now()
+        
+        # Включаем принудительное обновление для обновления интерфейса
+        if 'force_refresh' in st.session_state:
+            st.session_state.force_refresh = True
 
 def resume_game():
     """
@@ -28,6 +38,12 @@ def resume_game():
         pause_duration = (datetime.now() - st.session_state.pause_time).total_seconds()
         st.session_state.elapsed_pause_time += pause_duration
         st.session_state.game_paused = False
+        
+        # Обновляем время последнего обновления и включаем принудительное обновление
+        if 'last_update_time' in st.session_state:
+            st.session_state.last_update_time = time.time()
+        if 'force_refresh' in st.session_state:
+            st.session_state.force_refresh = True
 
 def reset_game():
     """
@@ -38,6 +54,10 @@ def reset_game():
     st.session_state.start_time = None
     st.session_state.pause_time = None
     st.session_state.elapsed_pause_time = 0
+    
+    # Включаем принудительное обновление, чтобы обновить интерфейс
+    if 'force_refresh' in st.session_state:
+        st.session_state.force_refresh = True
 
 def calculate_game_time():
     """
