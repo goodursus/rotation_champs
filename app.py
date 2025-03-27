@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 import player_management as pm
 import court_allocation as ca
 import timer as tm
+import tournament as tr
 
 # Set page configuration
 st.set_page_config(
@@ -69,7 +70,7 @@ if 'elapsed_pause_time' not in st.session_state:
 st.title("Rotation Players")
 
 # Create tabs for separating content
-tab1, tab2 = st.tabs(["Courts & Timer", "Player Statistics"])
+tab1, tab2, tab3 = st.tabs(["Courts & Timer", "Player Statistics", "Tournament"])
 
 with tab1:
     # Create layout with two columns
@@ -195,6 +196,11 @@ with tab2:
     # Display player statistics
     st.header("Player Statistics")
     pm.display_player_stats()
+
+with tab3:
+    # Отображаем турнирную сетку и функциональность турнира
+    st.header("Tournament Mode")
+    tr.display_tournament()
 
 # Включаем автообновление страницы, если таймер активен
 enable_auto_refresh()
