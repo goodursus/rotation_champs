@@ -6,16 +6,25 @@ def start_game():
     """
     Start a new game
     """
+    # Сначала сбрасываем все значения
     st.session_state.game_active = True
     st.session_state.game_paused = False
     st.session_state.start_time = datetime.now()
     st.session_state.elapsed_pause_time = 0
     
-    # Обновляем время последнего обновления и включаем принудительное обновление
-    if 'last_update_time' in st.session_state:
-        st.session_state.last_update_time = time.time()
-    if 'force_refresh' in st.session_state:
-        st.session_state.force_refresh = True
+    # Увеличиваем счетчик запусков для отслеживания изменений
+    if 'start_counter' not in st.session_state:
+        st.session_state.start_counter = 0
+    st.session_state.start_counter += 1
+    
+    # Обновляем время последнего обновления для автообновления
+    st.session_state.last_update_time = time.time()
+    
+    # Принудительно включаем обновление
+    st.session_state.force_refresh = True
+    
+    # Выводим диагностическое сообщение
+    print(f"Игра запущена: {time.time()}, active={st.session_state.game_active}, start_time={st.session_state.start_time}")
 
 def pause_game():
     """
@@ -56,11 +65,17 @@ def reset_game():
     st.session_state.pause_time = None
     st.session_state.elapsed_pause_time = 0
     
-    # Принудительно включаем обновление
-    st.session_state.force_refresh = True
+    # Увеличиваем счетчик сбросов для отслеживания изменений в таймере
+    if 'reset_counter' not in st.session_state:
+        st.session_state.reset_counter = 0
+    st.session_state.reset_counter += 1
     
-    # Сбрасываем также время последнего обновления
+    # Принудительно включаем обновление и обновляем время
+    st.session_state.force_refresh = True
     st.session_state.last_update_time = time.time()
+    
+    # Выводим диагностическое сообщение для отладки
+    print(f"Таймер сброшен: {time.time()}")
 
 def calculate_game_time():
     """

@@ -101,29 +101,21 @@ def display_courts(courts, players_df):
                             # Используем HTML для размещения счета рядом с именем игрока
                             st.markdown("**Team A**")
                             
-                            # Первый игрок команды A со счетом на одной строке через HTML
+                            # Игроки команды A
                             if team_a_names:
-                                st.markdown(f"""
-                                <div style="display: flex; align-items: center; justify-content: space-between;">
-                                  <div style="flex: 3;">- {team_a_names[0]}</div>
-                                  <div style="flex: 1;">
-                                    <b>Score:</b>
-                                  </div>
-                                </div>
-                                """, unsafe_allow_html=True)
-                                
-                                # Отдельная строка для числового поля
-                                team_a_score = st.number_input(
-                                    "Team A Score", 
-                                    min_value=0, 
-                                    max_value=99,
-                                    key=f"direct_team_a_score_{court_idx}",
-                                    label_visibility="collapsed"
-                                )
+                                st.write(f"- {team_a_names[0]}")
                             
                             # Второй игрок команды A
                             if len(team_a_names) > 1:
                                 st.write(f"- {team_a_names[1]}")
+                                
+                            # Счет команды A отдельно
+                            team_a_score = st.number_input(
+                                "Team A Score", 
+                                min_value=0, 
+                                max_value=99,
+                                key=f"direct_team_a_score_{court_idx}"
+                            )
                             
                             # Команда B
                             st.markdown("**Team B**")

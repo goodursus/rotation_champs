@@ -22,24 +22,36 @@ if 'last_update_time' not in st.session_state:
 if 'force_refresh' not in st.session_state:
     st.session_state.force_refresh = False
 
+# Инициализируем счетчик обновлений
+if 'update_counter' not in st.session_state:
+    st.session_state.update_counter = 0
+
 # Автоматическое обновление каждую секунду, только если игра активна и не на паузе
 current_time = time.time()
 # Проверяем, инициализированы ли необходимые переменные состояния
 if 'game_active' in st.session_state and 'game_paused' in st.session_state:
+    # Всегда обновляем интерфейс при первой загрузке
+    if 'first_load' not in st.session_state:
+        st.session_state.first_load = False
+        st.rerun()
+        
+    # Принудительное обновление
+    if st.session_state.force_refresh:
+        st.session_state.force_refresh = False
+        st.session_state.last_update_time = current_time
+        st.session_state.update_counter += 1
+        st.rerun()
+        
+    # Обновление таймера во время активной игры
     if (st.session_state.game_active and 
         not st.session_state.game_paused and
-        (current_time - st.session_state.last_update_time >= 1.0 or st.session_state.force_refresh)):
+        current_time - st.session_state.last_update_time >= 1.0):
         
-        # Сбросить флаг принудительного обновления
-        st.session_state.force_refresh = False
         # Обновить время последнего обновления
         st.session_state.last_update_time = current_time
+        st.session_state.update_counter += 1
         
-        # Добавим небольшую задержку, чтобы предотвратить быстрое автообновление
-        if not st.session_state.force_refresh:
-            time.sleep(0.5)
-            
-        # Перезапустить приложение
+        # Перезапустить приложение для обновления таймера
         st.rerun()
 
 # Initialize session state variables if they don't exist
@@ -96,6 +108,18 @@ with tab1:
         # Game timer controls
         st.header("Game Timer")
         
+        # Добавляем статус таймера
+        timer_status = ""
+        if st.session_state.game_active:
+            if st.session_state.game_paused:
+                timer_status = "⏸️ Приостановлено"
+            else:
+                timer_status = "▶️ Активно"
+        else:
+            timer_status = "⏹️ Не запущено"
+            
+        st.write(f"**Статус таймера:** {timer_status}")
+        
         col_timer1, col_timer2, col_timer3 = st.columns(3)
         
         with col_timer1:
@@ -108,10 +132,14 @@ with tab1:
             
         with col_timer2:
             elapsed_time, elapsed_seconds, remaining_time, remaining_seconds = tm.calculate_game_time()
-            st.metric("Elapsed Time", f"{elapsed_time}:{elapsed_seconds:02d}")
+            # Добавляем счетчик обновлений как скрытый параметр для обновления метрики
+            update_count = st.session_state.get('update_counter', 0)
+            st.metric("Elapsed Time", f"{elapsed_time}:{elapsed_seconds:02d}", 
+                      delta=None, delta_color="off", help=f"Update: {update_count}")
             
         with col_timer3:
-            st.metric("Remaining Time", f"{remaining_time}:{remaining_seconds:02d}")
+            st.metric("Remaining Time", f"{remaining_time}:{remaining_seconds:02d}", 
+                      delta=None, delta_color="off", help=f"Update: {update_count}")
         
         col_btn1, col_btn2, col_btn3, col_btn4 = st.columns(4)
         
