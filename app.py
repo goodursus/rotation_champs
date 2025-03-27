@@ -24,22 +24,23 @@ if 'force_refresh' not in st.session_state:
 
 # Автоматическое обновление каждую секунду, только если игра активна и не на паузе
 current_time = time.time()
-if ('game_active' in st.session_state and 
-    st.session_state.game_active and 
-    not st.session_state.game_paused and
-    (current_time - st.session_state.last_update_time >= 1.0 or st.session_state.force_refresh)):
-    
-    # Сбросить флаг принудительного обновления
-    st.session_state.force_refresh = False
-    # Обновить время последнего обновления
-    st.session_state.last_update_time = current_time
-    
-    # Добавим небольшую задержку, чтобы предотвратить быстрое автообновление
-    if not st.session_state.force_refresh:
-        time.sleep(0.5)
+# Проверяем, инициализированы ли необходимые переменные состояния
+if 'game_active' in st.session_state and 'game_paused' in st.session_state:
+    if (st.session_state.game_active and 
+        not st.session_state.game_paused and
+        (current_time - st.session_state.last_update_time >= 1.0 or st.session_state.force_refresh)):
         
-    # Перезапустить приложение
-    st.rerun()
+        # Сбросить флаг принудительного обновления
+        st.session_state.force_refresh = False
+        # Обновить время последнего обновления
+        st.session_state.last_update_time = current_time
+        
+        # Добавим небольшую задержку, чтобы предотвратить быстрое автообновление
+        if not st.session_state.force_refresh:
+            time.sleep(0.5)
+            
+        # Перезапустить приложение
+        st.rerun()
 
 # Initialize session state variables if they don't exist
 if 'players_df' not in st.session_state:
