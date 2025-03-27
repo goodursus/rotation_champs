@@ -92,19 +92,26 @@ def display_courts(courts, players_df):
                         
                         # Display teams
                         if not court['is_rest']:
-                            col_a, col_b = st.columns(2)
+                            # Instead of nested columns, use a single container with markdown
+                            st.markdown("<div style='display: flex; justify-content: space-between;'>", unsafe_allow_html=True)
                             
-                            with col_a:
-                                st.markdown("**Team A**")
-                                for player_id in court['team_a']:
-                                    player_name = players_df.loc[players_df['id'] == player_id, 'name'].values[0]
-                                    st.write(f"- {player_name}")
+                            # Left side - Team A
+                            st.markdown("<div style='flex: 1;'>", unsafe_allow_html=True)
+                            st.markdown("**Team A**")
+                            for player_id in court['team_a']:
+                                player_name = players_df.loc[players_df['id'] == player_id, 'name'].values[0]
+                                st.write(f"- {player_name}")
+                            st.markdown("</div>", unsafe_allow_html=True)
                             
-                            with col_b:
-                                st.markdown("**Team B**")
-                                for player_id in court['team_b']:
-                                    player_name = players_df.loc[players_df['id'] == player_id, 'name'].values[0]
-                                    st.write(f"- {player_name}")
+                            # Right side - Team B
+                            st.markdown("<div style='flex: 1;'>", unsafe_allow_html=True)
+                            st.markdown("**Team B**")
+                            for player_id in court['team_b']:
+                                player_name = players_df.loc[players_df['id'] == player_id, 'name'].values[0]
+                                st.write(f"- {player_name}")
+                            st.markdown("</div>", unsafe_allow_html=True)
+                            
+                            st.markdown("</div>", unsafe_allow_html=True)
                         else:
                             # For rest court, just list all players
                             st.markdown("**Resting Players**")
