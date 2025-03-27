@@ -6,67 +6,54 @@ def start_game():
     """
     Start a new game
     """
-    # Сначала сбрасываем все значения
+    # Полностью сбрасываем таймер и затем устанавливаем его в активное состояние
     st.session_state.game_active = True
     st.session_state.game_paused = False
     st.session_state.start_time = datetime.now()
     st.session_state.elapsed_pause_time = 0
     
-    # Увеличиваем счетчик запусков для отслеживания изменений
-    if 'start_counter' not in st.session_state:
-        st.session_state.start_counter = 0
-    st.session_state.start_counter += 1
+    # Сбрасываем счетчики
+    if 'update_counter' not in st.session_state:
+        st.session_state.update_counter = 0
+    else:
+        st.session_state.update_counter = 0
     
-    # Обновляем время последнего обновления для автообновления
-    st.session_state.last_update_time = time.time()
-    
-    # Принудительно включаем обновление
-    st.session_state.force_refresh = True
-    
-    # Выводим диагностическое сообщение
-    print(f"Игра запущена: {time.time()}, active={st.session_state.game_active}, start_time={st.session_state.start_time}")
+    # Выводим логи для диагностики
+    print(f"Игра запущена: {datetime.now()}")
 
 def pause_game():
     """
     Pause the current game
     """
-    # Проверяем, активна ли игра и не приостановлена ли она
+    # Проверяем, что игра активна и не на паузе
     if st.session_state.game_active and not st.session_state.game_paused:
-        # Устанавливаем флаг паузы и запоминаем время
         st.session_state.game_paused = True
         st.session_state.pause_time = datetime.now()
         
-        # Принудительно обновляем интерфейс
-        st.session_state.force_refresh = True
-        
-        # Выводим логи для отладки
-        print(f"Игра приостановлена: {datetime.now()}, игра активна={st.session_state.game_active}, пауза={st.session_state.game_paused}")
+        # Выводим логи для диагностики
+        print(f"Игра приостановлена: {datetime.now()}")
 
 def resume_game():
     """
     Resume a paused game
     """
-    # Проверяем, что игра активна и приостановлена
+    # Проверяем, что игра активна и находится на паузе
     if st.session_state.game_active and st.session_state.game_paused:
-        # Безопасная проверка, что время паузы существует
+        # Защита от случая, когда pause_time не был правильно установлен
         if st.session_state.pause_time is None:
             st.session_state.pause_time = datetime.now()
-            
-        # Рассчитываем, как долго была пауза
+        
+        # Рассчитываем длительность паузы
         pause_duration = (datetime.now() - st.session_state.pause_time).total_seconds()
         
-        # Обновляем общее время на паузе и снимаем флаг паузы
+        # Добавляем к общему времени на паузе
         st.session_state.elapsed_pause_time += pause_duration
+        
+        # Снимаем с паузы
         st.session_state.game_paused = False
         
-        # Обновляем время последнего обновления для автообновления
-        st.session_state.last_update_time = time.time()
-        
-        # Принудительно обновляем интерфейс
-        st.session_state.force_refresh = True
-        
-        # Выводим логи для отладки
-        print(f"Игра возобновлена: {datetime.now()}, пауза длилась {pause_duration:.2f} секунд, общее время пауз: {st.session_state.elapsed_pause_time:.2f}")
+        # Выводим логи для диагностики
+        print(f"Игра возобновлена: {datetime.now()}, пауза длилась {pause_duration:.2f} сек")
 
 def reset_game():
     """
@@ -79,17 +66,16 @@ def reset_game():
     st.session_state.pause_time = None
     st.session_state.elapsed_pause_time = 0
     
-    # Увеличиваем счетчик сбросов для отслеживания изменений в таймере
+    # Увеличиваем счетчик сбросов для визуального индикатора
     if 'reset_counter' not in st.session_state:
         st.session_state.reset_counter = 0
     st.session_state.reset_counter += 1
     
-    # Принудительно включаем обновление и обновляем время
-    st.session_state.force_refresh = True
-    st.session_state.last_update_time = time.time()
+    # Сбрасываем счетчик обновлений
+    st.session_state.update_counter = 0
     
-    # Выводим диагностическое сообщение для отладки
-    print(f"Таймер сброшен: {time.time()}")
+    # Выводим логи для диагностики
+    print(f"Таймер сброшен: {datetime.now()}")
 
 def calculate_game_time():
     """

@@ -14,47 +14,23 @@ st.set_page_config(
     layout="wide"
 )
 
-# Добавим проверку для предотвращения бесконечного автообновления
-# и переключатель для отслеживания принудительного обновления
-if 'last_update_time' not in st.session_state:
-    st.session_state.last_update_time = time.time()
-    
-if 'force_refresh' not in st.session_state:
-    st.session_state.force_refresh = False
+# Используем новую функцию автообновления Streamlit
+def enable_auto_refresh():
+    """
+    Включает автоматическое обновление страницы с таймером
+    """
+    # Если игра активна и не на паузе, включаем автообновление каждую секунду
+    if st.session_state.get('game_active', False) and not st.session_state.get('game_paused', True):
+        time.sleep(0.1)  # Небольшая задержка для снижения нагрузки
+        st.rerun()
 
-# Инициализируем счетчик обновлений и другие переменные состояния
+# Инициализируем счетчик обновлений для отображения изменений в таймере
 if 'update_counter' not in st.session_state:
     st.session_state.update_counter = 0
-
-# Функция для проверки необходимости обновления таймера
-def should_refresh():
-    # Если это первая загрузка страницы
-    if 'first_load' not in st.session_state:
-        st.session_state.first_load = False
-        return True
-    
-    # Если запрошено принудительное обновление
-    if st.session_state.force_refresh:
-        st.session_state.force_refresh = False
-        return True
-    
-    # Обновляем таймер каждую секунду, только если игра активна и не на паузе
-    current_time = time.time()
-    if ('game_active' in st.session_state and 
-        st.session_state.game_active and 
-        not st.session_state.game_paused and
-        'last_update_time' in st.session_state and
-        current_time - st.session_state.last_update_time >= 1.0):
-        
-        st.session_state.last_update_time = current_time
+else:
+    # Увеличиваем счетчик при каждом обновлении, если игра активна и не на паузе
+    if st.session_state.get('game_active', False) and not st.session_state.get('game_paused', True):
         st.session_state.update_counter += 1
-        return True
-    
-    return False
-
-# Проверяем необходимость обновления
-if should_refresh():
-    st.rerun()
 
 # Initialize session state variables if they don't exist
 if 'players_df' not in st.session_state:
@@ -219,3 +195,6 @@ with tab2:
     # Display player statistics
     st.header("Player Statistics")
     pm.display_player_stats()
+
+# Включаем автообновление страницы, если таймер активен
+enable_auto_refresh()
