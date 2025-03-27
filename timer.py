@@ -30,29 +30,43 @@ def pause_game():
     """
     Pause the current game
     """
+    # Проверяем, активна ли игра и не приостановлена ли она
     if st.session_state.game_active and not st.session_state.game_paused:
+        # Устанавливаем флаг паузы и запоминаем время
         st.session_state.game_paused = True
         st.session_state.pause_time = datetime.now()
         
-        # Включаем принудительное обновление для обновления интерфейса
-        if 'force_refresh' in st.session_state:
-            st.session_state.force_refresh = True
+        # Принудительно обновляем интерфейс
+        st.session_state.force_refresh = True
+        
+        # Выводим логи для отладки
+        print(f"Игра приостановлена: {datetime.now()}, игра активна={st.session_state.game_active}, пауза={st.session_state.game_paused}")
 
 def resume_game():
     """
     Resume a paused game
     """
+    # Проверяем, что игра активна и приостановлена
     if st.session_state.game_active and st.session_state.game_paused:
-        # Calculate how long the game was paused
+        # Безопасная проверка, что время паузы существует
+        if st.session_state.pause_time is None:
+            st.session_state.pause_time = datetime.now()
+            
+        # Рассчитываем, как долго была пауза
         pause_duration = (datetime.now() - st.session_state.pause_time).total_seconds()
+        
+        # Обновляем общее время на паузе и снимаем флаг паузы
         st.session_state.elapsed_pause_time += pause_duration
         st.session_state.game_paused = False
         
-        # Обновляем время последнего обновления и включаем принудительное обновление
-        if 'last_update_time' in st.session_state:
-            st.session_state.last_update_time = time.time()
-        if 'force_refresh' in st.session_state:
-            st.session_state.force_refresh = True
+        # Обновляем время последнего обновления для автообновления
+        st.session_state.last_update_time = time.time()
+        
+        # Принудительно обновляем интерфейс
+        st.session_state.force_refresh = True
+        
+        # Выводим логи для отладки
+        print(f"Игра возобновлена: {datetime.now()}, пауза длилась {pause_duration:.2f} секунд, общее время пауз: {st.session_state.elapsed_pause_time:.2f}")
 
 def reset_game():
     """
