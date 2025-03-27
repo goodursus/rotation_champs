@@ -91,17 +91,21 @@ with tab1:
             if not st.session_state.game_active:
                 if st.button("Start Game", use_container_width=True):
                     tm.start_game()
+                    st.rerun()
             else:
                 if st.session_state.game_paused:
                     if st.button("Resume Game", use_container_width=True):
                         tm.resume_game()
+                        st.rerun()
                 else:
                     if st.button("Pause Game", use_container_width=True):
                         tm.pause_game()
+                        st.rerun()
         
         with col_btn2:
             if st.button("Reset Timer", use_container_width=True):
                 tm.reset_game()
+                st.rerun()
         
         with col_btn3:
             if st.button("Distribute Players", use_container_width=True):

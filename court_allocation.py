@@ -92,61 +92,51 @@ def display_courts(courts, players_df):
                         
                         # Display teams
                         if not court['is_rest']:
-                            # Instead of nested columns, use a single container with markdown
-                            st.markdown("<div style='display: flex; justify-content: space-between;'>", unsafe_allow_html=True)
-                            
-                            # Left side - Team A
-                            st.markdown("<div style='flex: 1;'>", unsafe_allow_html=True)
-                            st.markdown("**Team A**")
-                            for player_id in court['team_a']:
-                                player_name = players_df.loc[players_df['id'] == player_id, 'name'].values[0]
-                                st.write(f"- {player_name}")
-                            st.markdown("</div>", unsafe_allow_html=True)
-                            
-                            # Right side - Team B
-                            st.markdown("<div style='flex: 1;'>", unsafe_allow_html=True)
-                            st.markdown("**Team B**")
-                            for player_id in court['team_b']:
-                                player_name = players_df.loc[players_df['id'] == player_id, 'name'].values[0]
-                                st.write(f"- {player_name}")
-                            st.markdown("</div>", unsafe_allow_html=True)
-                            
-                            st.markdown("</div>", unsafe_allow_html=True)
-                            
                             # Get player names for display
                             team_a_names = [players_df.loc[players_df['id'] == player_id, 'name'].values[0] 
                                            for player_id in court['team_a']]
                             team_b_names = [players_df.loc[players_df['id'] == player_id, 'name'].values[0] 
                                            for player_id in court['team_b']]
                             
-                            # Add score inputs directly on the court card
-                            st.markdown("---")
-                            st.markdown("**Game Score**")
+                            # Team A header and first player with score input
+                            st.markdown("**Team A**")
                             
-                            # Use HTML for side-by-side display
-                            st.markdown("<div style='display: flex; justify-content: space-between;'>", unsafe_allow_html=True)
+                            # First player with score input on the same line
+                            col_team_a1, col_score_a = st.columns([3, 1])
+                            with col_team_a1:
+                                if team_a_names:
+                                    st.write(f"- {team_a_names[0]}")
+                            with col_score_a:
+                                team_a_score = st.number_input(
+                                    "Score", 
+                                    min_value=0, 
+                                    max_value=99,
+                                    key=f"direct_team_a_score_{court_idx}",
+                                    label_visibility="collapsed"
+                                )
                             
-                            # Team A score
-                            st.markdown("<div style='flex: 1;'>", unsafe_allow_html=True)
-                            team_a_score = st.number_input(
-                                "Team A", 
-                                min_value=0, 
-                                max_value=99,
-                                key=f"direct_team_a_score_{court_idx}"
-                            )
-                            st.markdown("</div>", unsafe_allow_html=True)
+                            # Second player of team A
+                            if len(team_a_names) > 1:
+                                st.write(f"- {team_a_names[1]}")
                             
-                            # Team B score
-                            st.markdown("<div style='flex: 1;'>", unsafe_allow_html=True)
-                            team_b_score = st.number_input(
-                                "Team B", 
-                                min_value=0, 
-                                max_value=99,
-                                key=f"direct_team_b_score_{court_idx}"
-                            )
-                            st.markdown("</div>", unsafe_allow_html=True)
-                            
-                            st.markdown("</div>", unsafe_allow_html=True)
+                            # Team B header and players
+                            st.markdown("**Team B**")
+                            col_team_b1, col_score_b = st.columns([3, 1])
+                            with col_team_b1:
+                                if team_b_names:
+                                    st.write(f"- {team_b_names[0]}")
+                            with col_score_b:
+                                team_b_score = st.number_input(
+                                    "Score", 
+                                    min_value=0, 
+                                    max_value=99,
+                                    key=f"direct_team_b_score_{court_idx}",
+                                    label_visibility="collapsed"
+                                )
+                                
+                            # Second player of team B
+                            if len(team_b_names) > 1:
+                                st.write(f"- {team_b_names[1]}")
                             
                             # Submit button for this court
                             if st.button("Save Result", key=f"save_result_{court_idx}"):
