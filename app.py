@@ -14,6 +14,13 @@ st.set_page_config(
     layout="wide"
 )
 
+# Автоматическое обновление каждую секунду, если игра активна
+if ('game_active' in st.session_state and 
+    st.session_state.game_active and 
+    not st.session_state.game_paused):
+    time.sleep(1)  # Подождать 1 секунду
+    st.rerun()  # Перезапустить приложение
+
 # Initialize session state variables if they don't exist
 if 'players_df' not in st.session_state:
     # Initialize with sample players for example (14 players)

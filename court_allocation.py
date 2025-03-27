@@ -98,50 +98,59 @@ def display_courts(courts, players_df):
                             team_b_names = [players_df.loc[players_df['id'] == player_id, 'name'].values[0] 
                                            for player_id in court['team_b']]
                             
-                            # Team A header and first player with score input
+                            # Используем HTML для размещения счета рядом с именем игрока
                             st.markdown("**Team A**")
                             
-                            # First player with score input on the same line
-                            col_team_a1, col_score_a = st.columns([3, 1])
-                            with col_team_a1:
-                                if team_a_names:
-                                    st.write(f"- {team_a_names[0]}")
-                            with col_score_a:
+                            # Первый игрок команды A со счетом на одной строке через HTML
+                            if team_a_names:
+                                st.markdown(f"""
+                                <div style="display: flex; align-items: center; justify-content: space-between;">
+                                  <div style="flex: 3;">- {team_a_names[0]}</div>
+                                  <div style="flex: 1;">
+                                    <b>Score:</b>
+                                  </div>
+                                </div>
+                                """, unsafe_allow_html=True)
+                                
+                                # Отдельная строка для числового поля
                                 team_a_score = st.number_input(
-                                    "Score", 
+                                    "Team A Score", 
                                     min_value=0, 
                                     max_value=99,
                                     key=f"direct_team_a_score_{court_idx}",
                                     label_visibility="collapsed"
                                 )
                             
-                            # Second player of team A
+                            # Второй игрок команды A
                             if len(team_a_names) > 1:
                                 st.write(f"- {team_a_names[1]}")
                             
-                            # Team B header and players
+                            # Команда B
                             st.markdown("**Team B**")
-                            col_team_b1, col_score_b = st.columns([3, 1])
-                            with col_team_b1:
-                                if team_b_names:
-                                    st.write(f"- {team_b_names[0]}")
-                            with col_score_b:
-                                team_b_score = st.number_input(
-                                    "Score", 
-                                    min_value=0, 
-                                    max_value=99,
-                                    key=f"direct_team_b_score_{court_idx}",
-                                    label_visibility="collapsed"
-                                )
-                                
-                            # Second player of team B
+                            
+                            # Первый игрок команды B
+                            if team_b_names:
+                                st.write(f"- {team_b_names[0]}")
+                            
+                            # Второй игрок команды B со счетом
                             if len(team_b_names) > 1:
                                 st.write(f"- {team_b_names[1]}")
+                                
+                            # Счет команды B отдельно
+                            team_b_score = st.number_input(
+                                "Team B Score", 
+                                min_value=0, 
+                                max_value=99,
+                                key=f"direct_team_b_score_{court_idx}"
+                            )
                             
                             # Submit button for this court
                             if st.button("Save Result", key=f"save_result_{court_idx}"):
                                 # Update player statistics
                                 import player_management as pm
+                                # Используем значения из Streamlit states для надежности
+                                team_a_score = st.session_state.get(f"direct_team_a_score_{court_idx}", 0)
+                                team_b_score = st.session_state.get(f"direct_team_b_score_{court_idx}", 0)
                                 pm.update_player_stats(court_idx, team_a_score, team_b_score)
                                 st.success("Score saved!")
                                 
