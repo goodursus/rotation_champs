@@ -58,7 +58,7 @@ def distribute_players(players_df):
 
 def display_courts(courts, players_df):
     """
-    Display courts with player allocations
+    Display courts with player allocations and score inputs
     
     Parameters:
     - courts: List of court dictionaries
@@ -112,6 +112,49 @@ def display_courts(courts, players_df):
                             st.markdown("</div>", unsafe_allow_html=True)
                             
                             st.markdown("</div>", unsafe_allow_html=True)
+                            
+                            # Get player names for display
+                            team_a_names = [players_df.loc[players_df['id'] == player_id, 'name'].values[0] 
+                                           for player_id in court['team_a']]
+                            team_b_names = [players_df.loc[players_df['id'] == player_id, 'name'].values[0] 
+                                           for player_id in court['team_b']]
+                            
+                            # Add score inputs directly on the court card
+                            st.markdown("---")
+                            st.markdown("**Game Score**")
+                            
+                            # Use HTML for side-by-side display
+                            st.markdown("<div style='display: flex; justify-content: space-between;'>", unsafe_allow_html=True)
+                            
+                            # Team A score
+                            st.markdown("<div style='flex: 1;'>", unsafe_allow_html=True)
+                            team_a_score = st.number_input(
+                                "Team A", 
+                                min_value=0, 
+                                max_value=99,
+                                key=f"direct_team_a_score_{court_idx}"
+                            )
+                            st.markdown("</div>", unsafe_allow_html=True)
+                            
+                            # Team B score
+                            st.markdown("<div style='flex: 1;'>", unsafe_allow_html=True)
+                            team_b_score = st.number_input(
+                                "Team B", 
+                                min_value=0, 
+                                max_value=99,
+                                key=f"direct_team_b_score_{court_idx}"
+                            )
+                            st.markdown("</div>", unsafe_allow_html=True)
+                            
+                            st.markdown("</div>", unsafe_allow_html=True)
+                            
+                            # Submit button for this court
+                            if st.button("Save Result", key=f"save_result_{court_idx}"):
+                                # Update player statistics
+                                import player_management as pm
+                                pm.update_player_stats(court_idx, team_a_score, team_b_score)
+                                st.success("Score saved!")
+                                
                         else:
                             # For rest court, just list all players
                             st.markdown("**Resting Players**")

@@ -50,70 +50,75 @@ if 'elapsed_pause_time' not in st.session_state:
 # Main application layout
 st.title("Rotation Players")
 
-# Create layout with two columns
-col1, col2 = st.columns([2, 1])
+# Create tabs for separating content
+tab1, tab2 = st.tabs(["Courts & Timer", "Player Statistics"])
 
-with col1:
-    # Display courts with players
-    st.header("Courts")
-    if st.session_state.courts:
-        ca.display_courts(st.session_state.courts, st.session_state.players_df)
-    else:
-        st.info("Click 'Distribute Players' to allocate players to courts.")
+with tab1:
+    # Create layout with two columns
+    col1, col2 = st.columns([2, 1])
 
-    # Game timer controls
-    st.header("Game Timer")
-    
-    col_timer1, col_timer2, col_timer3 = st.columns(3)
-    
-    with col_timer1:
-        st.session_state.game_duration = st.number_input(
-            "Game Duration (minutes)", 
-            min_value=1, 
-            max_value=120, 
-            value=st.session_state.game_duration
-        )
-        
-    with col_timer2:
-        elapsed_time, remaining_time = tm.calculate_game_time()
-        st.metric("Elapsed Time", f"{elapsed_time} minutes")
-        
-    with col_timer3:
-        st.metric("Remaining Time", f"{remaining_time} minutes")
-    
-    col_btn1, col_btn2, col_btn3 = st.columns(3)
-    
-    with col_btn1:
-        if not st.session_state.game_active:
-            if st.button("Start Game", use_container_width=True):
-                tm.start_game()
+    with col1:
+        # Display courts with players
+        st.header("Courts")
+        if st.session_state.courts:
+            ca.display_courts(st.session_state.courts, st.session_state.players_df)
         else:
-            if st.session_state.game_paused:
-                if st.button("Resume Game", use_container_width=True):
-                    tm.resume_game()
+            st.info("Click 'Distribute Players' to allocate players to courts.")
+
+        # Game timer controls
+        st.header("Game Timer")
+        
+        col_timer1, col_timer2, col_timer3 = st.columns(3)
+        
+        with col_timer1:
+            st.session_state.game_duration = st.number_input(
+                "Game Duration (minutes)", 
+                min_value=1, 
+                max_value=120, 
+                value=st.session_state.game_duration
+            )
+            
+        with col_timer2:
+            elapsed_time, elapsed_seconds, remaining_time, remaining_seconds = tm.calculate_game_time()
+            st.metric("Elapsed Time", f"{elapsed_time}:{elapsed_seconds:02d}")
+            
+        with col_timer3:
+            st.metric("Remaining Time", f"{remaining_time}:{remaining_seconds:02d}")
+        
+        col_btn1, col_btn2, col_btn3, col_btn4 = st.columns(4)
+        
+        with col_btn1:
+            if not st.session_state.game_active:
+                if st.button("Start Game", use_container_width=True):
+                    tm.start_game()
             else:
-                if st.button("Pause Game", use_container_width=True):
-                    tm.pause_game()
-    
-    with col_btn2:
-        if st.button("Reset Timer", use_container_width=True):
-            tm.reset_game()
-    
-    with col_btn3:
-        if st.button("Distribute Players", use_container_width=True):
-            st.session_state.courts = ca.distribute_players(st.session_state.players_df)
-            st.rerun()
+                if st.session_state.game_paused:
+                    if st.button("Resume Game", use_container_width=True):
+                        tm.resume_game()
+                else:
+                    if st.button("Pause Game", use_container_width=True):
+                        tm.pause_game()
+        
+        with col_btn2:
+            if st.button("Reset Timer", use_container_width=True):
+                tm.reset_game()
+        
+        with col_btn3:
+            if st.button("Distribute Players", use_container_width=True):
+                st.session_state.courts = ca.distribute_players(st.session_state.players_df)
+                st.rerun()
+                
+        with col_btn4:
+            if st.button("Rotate Players", use_container_width=True):
+                ca.rotate_players()
+                st.rerun()
 
-with col2:
-    # Player management section
-    st.header("Players")
-    pm.manage_players()
+    with col2:
+        # Player management section
+        st.header("Players")
+        pm.manage_players()
 
-    # Game results section
-    if st.session_state.courts:
-        st.header("Game Results")
-        ca.record_game_results()
-
-# Display player statistics
-st.header("Player Statistics")
-pm.display_player_stats()
+with tab2:
+    # Display player statistics
+    st.header("Player Statistics")
+    pm.display_player_stats()
