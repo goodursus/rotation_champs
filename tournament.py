@@ -529,11 +529,13 @@ def display_tournaments_list():
     
     if not tournaments_df.empty:
         # Форматируем и отображаем таблицу
-        tournaments_df['status_display'] = tournaments_df['status'].map({
+        # Добавляем колонку для отображения статуса
+        status_map = {
             'planned': 'Запланирован',
             'active': 'В процессе',
             'completed': 'Завершен'
-        })
+        }
+        tournaments_df['status_display'] = tournaments_df['status'].map(status_map)
         
         # Создаем редактируемую таблицу
         edited_df = st.data_editor(
@@ -557,8 +559,16 @@ def display_tournaments_list():
         for idx, tournament in enumerate(st.session_state.tournaments_list):
             col1, col2, col3 = st.columns([3, 2, 2])
             
+            # Получаем отображаемый статус
+            status_map = {
+                'planned': 'Запланирован',
+                'active': 'В процессе',
+                'completed': 'Завершен'
+            }
+            status_display = status_map.get(tournament['status'], tournament['status'])
+            
             with col1:
-                st.write(f"**{tournament['name']}** ({tournament['status_display']})")
+                st.write(f"**{tournament['name']}** ({status_display})")
             
             with col2:
                 # Кнопка действия в зависимости от статуса
