@@ -1,0 +1,519 @@
+import streamlit as st
+import pandas as pd
+from st_aggrid import AgGrid, GridOptionsBuilder, JsCode, GridUpdateMode
+import player_management as pm
+import random
+import numpy as np
+from datetime import datetime
+
+def generate_custom_layout():
+    """
+    Создает интерактивный интерфейс для ручного распределения игроков по кортам
+    путем drag-and-drop
+    """
+    if 'players_df' not in st.session_state:
+        st.error("Сначала добавьте игроков в список")
+        return None
+
+    players_df = st.session_state.players_df.copy()
+    
+    # Добавляем столбец для указания корта и позиции
+    if 'court_assignment' not in players_df.columns:
+        players_df['court_assignment'] = "Не распределен"
+    
+    if 'team' not in players_df.columns:
+        players_df['team'] = ""
+    
+    # Создаем опции для выбора кортов
+    num_players = len(players_df)
+    num_courts = max(1, num_players // 4)
+    
+    court_options = ["Не распределен"] + [f"Корт {i+1}" for i in range(num_courts)] + ["Отдых"]
+    team_options = ["", "A", "B"]
+    
+    # Создаем настройки для отображения таблицы
+    gb = GridOptionsBuilder.from_dataframe(players_df[['name', 'rating', 'court_assignment', 'team']])
+    
+    # Настраиваем столбцы
+    gb.configure_column('name', header_name='Имя игрока', editable=False)
+    gb.configure_column('rating', header_name='Рейтинг', editable=False, width=80)
+    
+    # Столбец с выбором корта (выпадающий список)
+    gb.configure_column(
+        'court_assignment', 
+        header_name='Корт', 
+        editable=True,
+        cellEditor='agSelectCellEditor',
+        cellEditorParams={'values': court_options}
+    )
+    
+    # Столбец с выбором команды (выпадающий список)
+    gb.configure_column(
+        'team', 
+        header_name='Команда', 
+        editable=True,
+        cellEditor='agSelectCellEditor',
+        cellEditorParams={'values': team_options},
+        width=90
+    )
+    
+    # Включаем drag-and-drop
+    gb.configure_grid_options(rowDragManaged=True, animateRows=True)
+    
+    # Создаем таблицу
+    grid_options = gb.build()
+    
+    # Отображаем интерактивную таблицу
+    st.write("### Распределите игроков по кортам")
+    st.write("Перемещайте строки перетаскиванием и назначайте корт и команду")
+    
+    # Отображаем таблицу с возможностью drag-and-drop
+    grid_response = AgGrid(
+        players_df,
+        gridOptions=grid_options,
+        update_mode=GridUpdateMode.MODEL_CHANGED,
+        fit_columns_on_grid_load=True,
+        height=400,
+        allow_unsafe_jscode=True,
+        enable_enterprise_modules=False
+    )
+    
+    # Получаем обновленные данные
+    updated_df = grid_response['data']
+    
+    # Кнопка для применения распределения
+    if st.button("Применить распределение"):
+        # Проверяем корректность распределения
+        validation_result, message = validate_court_assignment(updated_df)
+        
+        if validation_result:
+            # Преобразуем пользовательские назначения в формат кортов
+            courts = convert_assignments_to_courts(updated_df)
+            st.session_state.courts = courts
+            st.success("Распределение успешно применено!")
+            return courts
+        else:
+            st.error(message)
+            return None
+    
+    return None
+
+def validate_court_assignment(df):
+    """
+    Проверяет корректность распределения игроков по кортам
+    
+    Returns:
+    - (True, '') если распределение корректно
+    - (False, error_message) если есть ошибки
+    """
+    # Проверяем, что все игроки распределены
+    not_assigned = df[df['court_assignment'] == 'Не распределен']
+    if len(not_assigned) > 0:
+        return False, f"Есть нераспределенные игроки: {', '.join(not_assigned['name'].tolist())}"
+    
+    # Проверяем, что в каждом корте правильно назначены команды
+    for court in df['court_assignment'].unique():
+        if court == 'Отдых':
+            continue  # Отдыхающие игроки не нуждаются в команде
+            
+        court_players = df[df['court_assignment'] == court]
+        
+        # Проверяем, что у всех игроков на корте назначена команда
+        no_team = court_players[court_players['team'] == '']
+        if len(no_team) > 0:
+            return False, f"Игроки на корте {court} не имеют команды: {', '.join(no_team['name'].tolist())}"
+        
+        # Проверяем, что на корте есть обе команды
+        team_a = court_players[court_players['team'] == 'A']
+        team_b = court_players[court_players['team'] == 'B']
+        
+        if len(team_a) == 0:
+            return False, f"На корте {court} нет игроков команды A"
+        
+        if len(team_b) == 0:
+            return False, f"На корте {court} нет игроков команды B"
+        
+        # Проверяем, что в каждой команде не более 2 игроков
+        if len(team_a) > 2:
+            return False, f"В команде A на корте {court} слишком много игроков: {len(team_a)}"
+        
+        if len(team_b) > 2:
+            return False, f"В команде B на корте {court} слишком много игроков: {len(team_b)}"
+    
+    return True, ''
+
+def convert_assignments_to_courts(df):
+    """
+    Преобразует пользовательские назначения игроков в формат кортов
+    
+    Parameters:
+    - df: DataFrame с распределением игроков
+    
+    Returns:
+    - List of courts with player allocations
+    """
+    courts = []
+    
+    # Определяем уникальные корты (исключая "Не распределен")
+    court_names = [c for c in df['court_assignment'].unique() if c != 'Не распределен']
+    
+    # Создаем корты
+    for court_name in court_names:
+        court_players = df[df['court_assignment'] == court_name]
+        
+        if court_name == 'Отдых':
+            # Это корт для отдыха
+            court = {
+                'court_number': len(courts) + 1,
+                'team_a': court_players['id'].tolist(),
+                'team_b': [],
+                'is_rest': True
+            }
+        else:
+            # Обычный корт с двумя командами
+            team_a = court_players[court_players['team'] == 'A']
+            team_b = court_players[court_players['team'] == 'B']
+            
+            court = {
+                'court_number': int(court_name.split(' ')[1]),
+                'team_a': team_a['id'].tolist(),
+                'team_b': team_b['id'].tolist(),
+                'is_rest': False
+            }
+        
+        courts.append(court)
+    
+    # Сортируем корты по номеру
+    courts.sort(key=lambda x: x['court_number'])
+    
+    return courts
+
+def auto_generate_results(consider_ratings=True, display_results=True):
+    """
+    Автоматически генерирует случайные результаты игр для всех кортов
+    и обновляет статистику игроков
+    
+    Parameters:
+    - consider_ratings: Если True, результаты будут генерироваться с учетом рейтингов игроков
+    - display_results: Если True, результаты будут выведены на экран
+    
+    Returns:
+    - List of generated results
+    """
+    if 'courts' not in st.session_state or not st.session_state.courts:
+        if display_results:
+            st.error("Сначала распределите игроков по кортам")
+        return None
+    
+    courts = st.session_state.courts
+    players_df = st.session_state.players_df
+    
+    results = []
+    
+    # Генерируем случайные результаты для каждого корта
+    for i, court in enumerate(courts):
+        if court['is_rest']:
+            continue
+        
+        if consider_ratings and not st.session_state.get('random_results_only', False):
+            # Вычисляем средний рейтинг команд
+            team_a_ratings = [players_df.loc[players_df['id'] == pid, 'rating'].values[0] for pid in court['team_a']]
+            team_b_ratings = [players_df.loc[players_df['id'] == pid, 'rating'].values[0] for pid in court['team_b']]
+            
+            team_a_avg_rating = sum(team_a_ratings) / len(team_a_ratings) if team_a_ratings else 0
+            team_b_avg_rating = sum(team_b_ratings) / len(team_b_ratings) if team_b_ratings else 0
+            
+            # Нормализуем разницу рейтингов для влияния на результат
+            rating_diff = team_a_avg_rating - team_b_avg_rating
+            rating_advantage = min(10, max(-10, rating_diff / 10))  # Максимум ±10 очков влияния
+            
+            # Базовый случайный счет
+            base_score = random.randint(10, 18)
+            
+            # Учитываем рейтинг для смещения вероятности победы
+            team_a_score = max(5, min(21, int(base_score + rating_advantage + random.randint(-2, 2))))
+            
+            # Счет команды B с большей вероятностью близок к счету команды A, но с учетом рейтинга
+            noise = int(np.random.normal(0, 3))  # Меньше разброс для более предсказуемых результатов
+            team_b_score = max(5, min(21, int(base_score - rating_advantage + noise)))
+        else:
+            # Полностью случайная генерация
+            team_a_score = random.randint(5, 21)
+            score_diff = int(np.random.normal(0, 5))
+            team_b_score = max(5, min(21, team_a_score + score_diff))
+        
+        # Обеспечиваем минимальную разницу в 2 очка для победителя
+        if team_a_score > team_b_score and team_a_score - team_b_score < 2:
+            team_a_score = team_b_score + 2
+        elif team_b_score > team_a_score and team_b_score - team_a_score < 2:
+            team_b_score = team_a_score + 2
+        
+        # Добавляем результаты
+        results.append({
+            'court_idx': i,
+            'team_a_score': team_a_score,
+            'team_b_score': team_b_score
+        })
+    
+    # Применяем результаты
+    for result in results:
+        pm.update_player_stats(
+            result['court_idx'],
+            result['team_a_score'],
+            result['team_b_score']
+        )
+    
+    if display_results:
+        st.success(f"Автоматически сгенерированы результаты для {len(results)} кортов")
+        
+        # Отображаем сгенерированные результаты
+        if results:
+            st.write("### Сгенерированные результаты:")
+            for i, result in enumerate(results):
+                court_idx = result['court_idx']
+                court = courts[court_idx]
+                
+                # Получаем имена игроков
+                player_names_a = [st.session_state.players_df.loc[st.session_state.players_df['id'] == pid, 'name'].values[0] 
+                               for pid in court['team_a']]
+                player_names_b = [st.session_state.players_df.loc[st.session_state.players_df['id'] == pid, 'name'].values[0] 
+                               for pid in court['team_b']]
+                
+                team_a_str = ", ".join(player_names_a)
+                team_b_str = ", ".join(player_names_b)
+                
+                # Определяем стиль отображения результата в зависимости от победителя
+                result_style = ""
+                if result['team_a_score'] > result['team_b_score']:
+                    result_style = f"**{team_a_str}** ({result['team_a_score']}) vs {team_b_str} ({result['team_b_score']})"
+                else:
+                    result_style = f"{team_a_str} ({result['team_a_score']}) vs **{team_b_str}** ({result['team_b_score']})"
+                
+                st.write(f"**Корт {court['court_number']}:** {result_style}")
+    
+    # Пересчитываем рейтинги игроков
+    pm.calculate_ratings()
+    
+    # Сохраняем результаты для истории
+    if 'game_history' not in st.session_state:
+        st.session_state.game_history = []
+    
+    # Добавляем запись в историю игр
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
+    for result in results:
+        court_idx = result['court_idx']
+        court = courts[court_idx]
+        
+        # Формируем запись истории
+        history_entry = {
+            'timestamp': timestamp,
+            'court_number': court['court_number'],
+            'team_a_players': court['team_a'],
+            'team_b_players': court['team_b'],
+            'team_a_score': result['team_a_score'],
+            'team_b_score': result['team_b_score']
+        }
+        
+        st.session_state.game_history.append(history_entry)
+    
+    return results
+
+def display_player_performance():
+    """
+    Отображает графики и статистику производительности игроков на основе истории игр
+    """
+    if 'game_history' not in st.session_state or not st.session_state.game_history:
+        st.info("Пока нет данных об играх. Проведите несколько игр для отображения статистики.")
+        return
+    
+    st.write("### История результатов игр")
+    
+    # Конвертируем историю игр в DataFrame для удобства анализа
+    history_data = []
+    for entry in st.session_state.game_history:
+        # Определяем победителя
+        team_a_won = entry['team_a_score'] > entry['team_b_score']
+        
+        # Добавляем записи для всех игроков в команде A
+        for player_id in entry['team_a_players']:
+            player_name = st.session_state.players_df.loc[st.session_state.players_df['id'] == player_id, 'name'].values[0]
+            history_data.append({
+                'timestamp': entry['timestamp'],
+                'player_id': player_id,
+                'player_name': player_name,
+                'team': 'A',
+                'opponent_team': 'B',
+                'court': entry['court_number'],
+                'score': entry['team_a_score'],
+                'opponent_score': entry['team_b_score'],
+                'won': team_a_won,
+                'point_diff': entry['team_a_score'] - entry['team_b_score']
+            })
+        
+        # Добавляем записи для всех игроков в команде B
+        for player_id in entry['team_b_players']:
+            player_name = st.session_state.players_df.loc[st.session_state.players_df['id'] == player_id, 'name'].values[0]
+            history_data.append({
+                'timestamp': entry['timestamp'],
+                'player_id': player_id,
+                'player_name': player_name,
+                'team': 'B',
+                'opponent_team': 'A',
+                'court': entry['court_number'],
+                'score': entry['team_b_score'],
+                'opponent_score': entry['team_a_score'],
+                'won': not team_a_won,
+                'point_diff': entry['team_b_score'] - entry['team_a_score']
+            })
+    
+    history_df = pd.DataFrame(history_data)
+    
+    # Преобразуем строку времени в datetime
+    history_df['timestamp'] = pd.to_datetime(history_df['timestamp'])
+    
+    # Отображаем последние результаты
+    st.write("#### Последние результаты игр")
+    
+    # Группируем по времени и корту для отображения последних игр
+    last_games = history_df.sort_values('timestamp', ascending=False)
+    
+    # Получаем уникальные временные метки (сессии игр)
+    sessions = last_games['timestamp'].unique()
+    
+    for i, session in enumerate(sessions[:5]):  # Показываем до 5 последних сессий
+        session_games = last_games[last_games['timestamp'] == session]
+        
+        # Группируем по корту
+        courts = session_games['court'].unique()
+        
+        st.write(f"**Сессия {i+1}:** {session}")
+        
+        for court in courts:
+            court_data = session_games[session_games['court'] == court]
+            
+            # Получаем игроков команды A и B
+            team_a = court_data[court_data['team'] == 'A']
+            team_b = court_data[court_data['team'] == 'B']
+            
+            if len(team_a) > 0 and len(team_b) > 0:
+                team_a_players = ", ".join(team_a['player_name'].unique())
+                team_b_players = ", ".join(team_b['player_name'].unique())
+                
+                team_a_score = team_a['score'].values[0]
+                team_b_score = team_b['score'].values[0]
+                
+                # Определяем стиль отображения в зависимости от победителя
+                if team_a_score > team_b_score:
+                    result = f"**{team_a_players}** ({team_a_score}) vs {team_b_players} ({team_b_score})"
+                else:
+                    result = f"{team_a_players} ({team_a_score}) vs **{team_b_players}** ({team_b_score})"
+                
+                st.write(f"**Корт {int(court)}:** {result}")
+    
+    # Статистика по игрокам
+    st.write("#### Статистика игроков")
+    player_stats = history_df.groupby('player_name').agg({
+        'won': ['sum', 'count'],
+        'point_diff': 'mean'
+    }).reset_index()
+    
+    player_stats.columns = ['player_name', 'wins', 'games', 'avg_point_diff']
+    player_stats['win_rate'] = player_stats['wins'] / player_stats['games'] * 100
+    player_stats['win_rate'] = player_stats['win_rate'].round(1)
+    player_stats['avg_point_diff'] = player_stats['avg_point_diff'].round(1)
+    
+    # Сортируем по проценту побед
+    player_stats = player_stats.sort_values('win_rate', ascending=False)
+    
+    # Создаем удобную таблицу
+    player_stats_display = player_stats[['player_name', 'wins', 'games', 'win_rate', 'avg_point_diff']]
+    player_stats_display.columns = ['Игрок', 'Победы', 'Игры', 'Процент побед', 'Средняя разница']
+    
+    st.dataframe(player_stats_display)
+    
+    # Добавляем график изменения рейтинга/результатов со временем
+    if len(sessions) > 1:
+        st.write("#### Динамика результатов")
+        st.info("Скоро здесь появятся графики динамики результатов и рейтингов игроков за время")
+
+
+def display_court_designer():
+    """
+    Основная функция для отображения дизайнера кортов
+    """
+    st.subheader("Дизайнер расположения кортов")
+    
+    # Создаем вкладки для различных функций
+    design_tab, auto_tab, stats_tab = st.tabs(["Ручное распределение", "Автоматическое тестирование", "Статистика игр"])
+    
+    with design_tab:
+        generate_custom_layout()
+    
+    with auto_tab:
+        st.write("### Автоматическое тестирование")
+        st.write("Автоматически генерирует случайные результаты игр для всех кортов.")
+        
+        # Настройки генерации результатов
+        with st.expander("Настройки генерации результатов"):
+            # Опция для учета рейтингов при генерации
+            if 'consider_ratings_for_results' not in st.session_state:
+                st.session_state.consider_ratings_for_results = True
+                
+            st.session_state.consider_ratings_for_results = st.checkbox(
+                "Учитывать рейтинг игроков при генерации результатов",
+                value=st.session_state.consider_ratings_for_results
+            )
+            
+            if st.session_state.consider_ratings_for_results:
+                st.info("""
+                    Результаты игр генерируются с учетом рейтинга игроков. 
+                    Команды с более высоким средним рейтингом имеют больше шансов на победу.
+                """)
+            else:
+                st.info("Результаты генерируются полностью случайно без учета рейтинга игроков.")
+                
+            # Опция для активации авто-генерации при окончании таймера
+            st.session_state.auto_results_on_timer_end = st.checkbox(
+                "Генерировать результаты автоматически при окончании таймера", 
+                value=st.session_state.get('auto_results_on_timer_end', False)
+            )
+            
+            if st.session_state.auto_results_on_timer_end:
+                st.success("Автоматическая генерация при окончании таймера активирована!")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            if st.button("Сгенерировать случайные результаты", use_container_width=True):
+                auto_generate_results(
+                    consider_ratings=st.session_state.consider_ratings_for_results,
+                    display_results=True
+                )
+        
+        with col2:
+            game_active = st.session_state.get('game_active', False)
+            game_paused = st.session_state.get('game_paused', False)
+            
+            if game_active:
+                status = "▶️ Активен" if not game_paused else "⏸️ Приостановлен"
+                st.info(f"Статус таймера: {status}")
+                
+                if game_paused:
+                    if st.button("Возобновить таймер", use_container_width=True):
+                        import timer as tm
+                        tm.resume_game()
+                        st.rerun()
+                else:
+                    if st.button("Приостановить таймер", use_container_width=True):
+                        import timer as tm
+                        tm.pause_game()
+                        st.rerun()
+            else:
+                if st.button("Запустить таймер", use_container_width=True):
+                    import timer as tm
+                    tm.start_game()
+                    st.rerun()
+    
+    with stats_tab:
+        display_player_performance()

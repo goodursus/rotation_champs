@@ -118,4 +118,22 @@ def calculate_game_time():
     remaining_minutes = int(remaining_seconds_total // 60)
     remaining_seconds = int(remaining_seconds_total % 60)
     
+    # Проверяем, нужно ли автоматически завершить игру и сгенерировать результаты
+    if st.session_state.game_active and not st.session_state.game_paused:
+        if remaining_seconds_total <= 0:
+            # Время игры истекло, сбрасываем таймер
+            # Отложенный импорт во избежание циклических зависимостей
+            try:
+                # Проверяем, активирован ли режим автоматической генерации результатов
+                if st.session_state.get('auto_results_on_timer_end', False):
+                    import court_designer as cd
+                    # Отложенно вызываем сброс таймера (после того, как сгенерируем результаты)
+                    st.session_state.timer_needs_reset = True
+                    # Генерируем результаты
+                    cd.auto_generate_results()
+            except Exception as e:
+                print(f"Ошибка при автоматической генерации результатов: {str(e)}")
+                # Все равно сбрасываем таймер
+                st.session_state.timer_needs_reset = True
+    
     return elapsed_minutes, elapsed_seconds, remaining_minutes, remaining_seconds

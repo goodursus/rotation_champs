@@ -8,6 +8,7 @@ import court_allocation as ca
 import timer as tm
 import tournament as tr
 import player_matching as match
+import court_designer as designer
 
 # Set page configuration
 st.set_page_config(
@@ -75,7 +76,7 @@ if 'matchmaking_strategy' not in st.session_state:
 st.title("Rotation Players")
 
 # Create tabs for separating content
-tab1, tab2, tab3 = st.tabs(["Courts & Timer", "Player Statistics", "Tournament"])
+tab1, tab2, tab3, tab4 = st.tabs(["Courts & Timer", "Player Statistics", "Tournament", "Court Designer"])
 
 with tab1:
     # Create layout with two columns
@@ -230,6 +231,20 @@ with tab3:
     # Отображаем турнирную сетку и функциональность турнира
     st.header("Tournament Mode")
     tr.display_tournament()
+
+with tab4:
+    # Отображаем дизайнер кортов
+    st.header("Court Designer")
+    designer.display_court_designer()
+
+# Проверяем, нужно ли сбросить таймер (например, после автогенерации результатов по таймеру)
+if st.session_state.get('timer_needs_reset', False):
+    # Сбрасываем флаг
+    st.session_state.timer_needs_reset = False
+    # Сбрасываем таймер
+    tm.reset_game()
+    # Делаем перезагрузку страницы
+    st.rerun()
 
 # Включаем автообновление страницы, если таймер активен
 enable_auto_refresh()
