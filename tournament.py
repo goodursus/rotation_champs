@@ -479,31 +479,388 @@ def display_tournament_bracket():
     else:
         st.info("Турнирная сетка пуста.")
 
+def display_tournaments_list():
+    """
+    Отображает список всех турниров
+    """
+    st.subheader("Список турниров")
+    
+    # Инициализируем список турниров, если он еще не создан
+    if 'tournaments_list' not in st.session_state:
+        st.session_state.tournaments_list = []
+        
+        # Добавляем пример турниров для демонстрации
+        sample_tournaments = [
+            {
+                'id': 1,
+                'name': 'Весенний турнир 2025',
+                'date': '2025-03-15',
+                'duration_minutes': 120,
+                'game_duration_minutes': 15,
+                'players_count': 22,
+                'status': 'completed',
+                'current_game': 0,
+                'total_games': 8,
+                'start_time': None,
+                'pause_time': None,
+                'elapsed_pause_time': 0
+            },
+            {
+                'id': 2,
+                'name': 'Летний кубок',
+                'date': '2025-06-10',
+                'duration_minutes': 90,
+                'game_duration_minutes': 10,
+                'players_count': 18,
+                'status': 'planned',
+                'current_game': 0,
+                'total_games': 6,
+                'start_time': None,
+                'pause_time': None,
+                'elapsed_pause_time': 0
+            }
+        ]
+        
+        for t in sample_tournaments:
+            st.session_state.tournaments_list.append(t)
+    
+    # Создаем таблицу турниров
+    tournaments_df = pd.DataFrame(st.session_state.tournaments_list)
+    
+    if not tournaments_df.empty:
+        # Форматируем и отображаем таблицу
+        tournaments_df['status_display'] = tournaments_df['status'].map({
+            'planned': 'Запланирован',
+            'active': 'В процессе',
+            'completed': 'Завершен'
+        })
+        
+        # Создаем редактируемую таблицу
+        edited_df = st.data_editor(
+            tournaments_df[['id', 'name', 'date', 'duration_minutes', 'game_duration_minutes', 'players_count', 'status_display']],
+            column_config={
+                "id": "№",
+                "name": "Название турнира",
+                "date": "Дата проведения",
+                "duration_minutes": "Продолжительность (мин)",
+                "game_duration_minutes": "Время игры (мин)",
+                "players_count": "Кол-во участников",
+                "status_display": "Статус"
+            },
+            disabled=["id", "status_display"],
+            hide_index=True,
+            use_container_width=True,
+            key="tournaments_table"
+        )
+        
+        # Добавляем кнопки действий для каждого турнира
+        for idx, tournament in enumerate(st.session_state.tournaments_list):
+            col1, col2, col3 = st.columns([3, 2, 2])
+            
+            with col1:
+                st.write(f"**{tournament['name']}** ({tournament['status_display']})")
+            
+            with col2:
+                # Кнопка действия в зависимости от статуса
+                if tournament['status'] == 'planned':
+                    if st.button(f"Начать турнир", key=f"start_tourney_{tournament['id']}"):
+                        # Устанавливаем время игры в st.session_state
+                        st.session_state.game_duration = tournament['game_duration_minutes']
+                        # Запускаем таймер
+                        start_tournament_timer(tournament['id'])
+                        # Перезагружаем страницу
+                        st.rerun()
+                elif tournament['status'] == 'active':
+                    is_paused = tournament['pause_time'] is not None
+                    if is_paused:
+                        if st.button(f"Возобновить", key=f"resume_tourney_{tournament['id']}"):
+                            resume_tournament_timer(tournament['id'])
+                            st.rerun()
+                    else:
+                        if st.button(f"Приостановить", key=f"pause_tourney_{tournament['id']}"):
+                            pause_tournament_timer(tournament['id'])
+                            st.rerun()
+            
+            with col3:
+                # Показываем время для активных турниров
+                if tournament['status'] == 'active':
+                    elapsed_minutes, elapsed_seconds, remaining_minutes, remaining_seconds = calculate_tournament_time(tournament['id'])
+                    st.write(f"⏱️ {elapsed_minutes:02d}:{elapsed_seconds:02d} / {remaining_minutes:02d}:{remaining_seconds:02d}")
+                else:
+                    st.write(f"Продолжительность: {tournament['duration_minutes']} мин")
+                    
+            st.divider()
+        
+        # Обрабатываем редактирование таблицы
+        if not edited_df.equals(tournaments_df[['id', 'name', 'date', 'duration_minutes', 'game_duration_minutes', 'players_count', 'status_display']]):
+            # Обновляем данные в session_state на основе изменений
+            for index, row in edited_df.iterrows():
+                tournament_id = row['id']
+                tournament_idx = next((i for i, t in enumerate(st.session_state.tournaments_list) if t['id'] == tournament_id), None)
+                
+                if tournament_idx is not None:
+                    st.session_state.tournaments_list[tournament_idx]['name'] = row['name']
+                    st.session_state.tournaments_list[tournament_idx]['date'] = row['date']
+                    st.session_state.tournaments_list[tournament_idx]['duration_minutes'] = row['duration_minutes']
+                    st.session_state.tournaments_list[tournament_idx]['game_duration_minutes'] = row['game_duration_minutes']
+                    st.session_state.tournaments_list[tournament_idx]['players_count'] = row['players_count']
+    else:
+        st.info("Нет доступных турниров")
+    
+    # Секция для создания нового турнира
+    st.subheader("Создать новый турнир")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        new_name = st.text_input("Название турнира", key="new_tournament_name")
+        new_date = st.date_input("Дата проведения", key="new_tournament_date")
+    
+    with col2:
+        new_duration = st.number_input("Общая продолжительность (мин)", min_value=30, max_value=360, value=120, key="new_tournament_duration")
+        new_game_duration = st.number_input("Время одной игры (мин)", min_value=5, max_value=60, value=15, key="new_tournament_game_duration")
+    
+    new_players_count = st.number_input("Количество участников", min_value=4, max_value=64, value=22, key="new_tournament_players_count")
+    
+    if st.button("Создать турнир"):
+        # Создаем новый ID как максимальный + 1
+        new_id = 1
+        if st.session_state.tournaments_list:
+            new_id = max([t['id'] for t in st.session_state.tournaments_list]) + 1
+        
+        # Создаем новый турнир
+        new_tournament = {
+            'id': new_id,
+            'name': new_name,
+            'date': new_date.strftime('%Y-%m-%d'),
+            'duration_minutes': new_duration,
+            'game_duration_minutes': new_game_duration,
+            'players_count': new_players_count,
+            'status': 'planned',
+            'current_game': 0,
+            'total_games': max(1, new_players_count // 4),
+            'start_time': None,
+            'pause_time': None,
+            'elapsed_pause_time': 0
+        }
+        
+        # Добавляем в список
+        st.session_state.tournaments_list.append(new_tournament)
+        st.success("Турнир успешно создан!")
+        st.rerun()
+
+def start_tournament_timer(tournament_id):
+    """
+    Запускает таймер для указанного турнира
+    
+    Parameters:
+    - tournament_id: ID турнира
+    """
+    # Находим индекс турнира в списке
+    tournament_idx = next(
+        (i for i, t in enumerate(st.session_state.tournaments_list) if t['id'] == tournament_id), 
+        None
+    )
+    
+    if tournament_idx is not None:
+        # Устанавливаем статус турнира в активный
+        st.session_state.tournaments_list[tournament_idx]['status'] = 'active'
+        # Записываем время начала
+        st.session_state.tournaments_list[tournament_idx]['start_time'] = datetime.now()
+        # Сбрасываем другие таймеры
+        st.session_state.tournaments_list[tournament_idx]['pause_time'] = None
+        st.session_state.tournaments_list[tournament_idx]['elapsed_pause_time'] = 0
+        # Сохраняем активный турнир в сессию
+        st.session_state.active_tournament_id = tournament_id
+        
+def pause_tournament_timer(tournament_id):
+    """
+    Приостанавливает таймер указанного турнира
+    
+    Parameters:
+    - tournament_id: ID турнира
+    """
+    # Находим индекс турнира в списке
+    tournament_idx = next(
+        (i for i, t in enumerate(st.session_state.tournaments_list) if t['id'] == tournament_id), 
+        None
+    )
+    
+    if tournament_idx is not None and st.session_state.tournaments_list[tournament_idx]['start_time'] is not None:
+        # Записываем время паузы
+        st.session_state.tournaments_list[tournament_idx]['pause_time'] = datetime.now()
+
+def resume_tournament_timer(tournament_id):
+    """
+    Возобновляет таймер указанного турнира
+    
+    Parameters:
+    - tournament_id: ID турнира
+    """
+    # Находим индекс турнира в списке
+    tournament_idx = next(
+        (i for i, t in enumerate(st.session_state.tournaments_list) if t['id'] == tournament_id), 
+        None
+    )
+    
+    if tournament_idx is not None and st.session_state.tournaments_list[tournament_idx]['pause_time'] is not None:
+        # Рассчитываем время паузы
+        pause_duration = (datetime.now() - st.session_state.tournaments_list[tournament_idx]['pause_time']).total_seconds()
+        # Добавляем к общему времени пауз
+        st.session_state.tournaments_list[tournament_idx]['elapsed_pause_time'] += pause_duration
+        # Сбрасываем время паузы
+        st.session_state.tournaments_list[tournament_idx]['pause_time'] = None
+
+def calculate_tournament_time(tournament_id):
+    """
+    Рассчитывает прошедшее и оставшееся время турнира
+    
+    Parameters:
+    - tournament_id: ID турнира
+    
+    Returns:
+    - tuple (elapsed_minutes, elapsed_seconds, remaining_minutes, remaining_seconds)
+    """
+    # Находим турнир в списке
+    tournament = next(
+        (t for t in st.session_state.tournaments_list if t['id'] == tournament_id), 
+        None
+    )
+    
+    if tournament is None:
+        return 0, 0, 0, 0
+        
+    if tournament['start_time'] is None:
+        return 0, 0, tournament['duration_minutes'], 0
+    
+    # Рассчитываем прошедшее время
+    if tournament['pause_time'] is not None:
+        # Если на паузе, используем время паузы
+        elapsed_seconds_total = (tournament['pause_time'] - tournament['start_time']).total_seconds() - tournament['elapsed_pause_time']
+    else:
+        # Иначе используем текущее время
+        elapsed_seconds_total = (datetime.now() - tournament['start_time']).total_seconds() - tournament['elapsed_pause_time']
+    
+    # Убедимся что elapsed_seconds_total не отрицательное
+    elapsed_seconds_total = max(0, elapsed_seconds_total)
+    
+    # Рассчитываем минуты и секунды
+    elapsed_minutes = int(elapsed_seconds_total // 60)
+    elapsed_seconds = int(elapsed_seconds_total % 60)
+    
+    # Рассчитываем общую продолжительность в секундах
+    total_duration_seconds = tournament['duration_minutes'] * 60
+    
+    # Рассчитываем оставшееся время
+    remaining_seconds_total = max(0, total_duration_seconds - elapsed_seconds_total)
+    
+    # Рассчитываем оставшиеся минуты и секунды
+    remaining_minutes = int(remaining_seconds_total // 60)
+    remaining_seconds = int(remaining_seconds_total % 60)
+    
+    # Проверяем, если время вышло, обновляем статус
+    if remaining_seconds_total <= 0 and tournament['status'] == 'active':
+        # Находим индекс турнира в списке
+        tournament_idx = next(
+            (i for i, t in enumerate(st.session_state.tournaments_list) if t['id'] == tournament_id), 
+            None
+        )
+        
+        if tournament_idx is not None:
+            # Обновляем статус на завершенный
+            st.session_state.tournaments_list[tournament_idx]['status'] = 'completed'
+    
+    return elapsed_minutes, elapsed_seconds, remaining_minutes, remaining_seconds
+
 def display_tournament():
     """
     Основная функция для отображения интерфейса турнира
     """
-    if 'tournament_data' not in st.session_state or st.session_state.tournament_data['status'] == 'setup':
-        display_tournament_setup()
-    else:
-        # Отображаем кнопку для начала нового турнира
-        col1, col2 = st.columns([3, 1])
-        with col2:
-            if st.button("Новый турнир"):
-                # Сбрасываем данные турнира
-                st.session_state.tournament_data = {
-                    'created_at': datetime.now(),
-                    'status': 'setup',
-                    'name': '',
-                    'bracket_type': 'single',
-                    'rounds': [],
-                    'current_round': 0,
-                    'matches': [],
-                    'player_ids': [],
-                    'winners': [],
-                    'runner_ups': []
-                }
-                st.rerun()
-        
-        # Отображаем турнирную сетку
-        display_tournament_bracket()
+    # Добавляем вкладки для разных разделов
+    tournament_tabs = st.tabs(["Текущий турнир", "Список турниров"])
+    
+    with tournament_tabs[0]:
+        # Отображаем текущий турнир
+        if 'tournament_data' not in st.session_state or st.session_state.tournament_data['status'] == 'setup':
+            display_tournament_setup()
+        else:
+            # Показываем информацию о текущем турнире
+            active_tournament_id = st.session_state.get('active_tournament_id')
+            
+            # Информация о текущей игре и общей продолжительности
+            col1, col2, col3 = st.columns([2, 2, 1])
+            
+            with col1:
+                tournament_data = st.session_state.tournament_data
+                current_round = tournament_data['current_round'] + 1
+                total_rounds = len(tournament_data['rounds'])
+                
+                # Находим номер текущей игры
+                current_game = 0
+                for r in range(tournament_data['current_round']):
+                    current_game += len(tournament_data['rounds'][r]['matches'])
+                    
+                # Добавляем текущие активные матчи
+                for match_idx in tournament_data['rounds'][tournament_data['current_round']]['matches']:
+                    if tournament_data['matches'][match_idx]['status'] == 'completed':
+                        current_game += 1
+                
+                # Общее количество игр
+                total_games = sum(len(round_data['matches']) for round_data in tournament_data['rounds'])
+                
+                # Отображаем прогресс турнира
+                st.metric("Турнир", f"{tournament_data.get('name', 'Без названия')} (Раунд {current_round}/{total_rounds})")
+                st.metric("Текущая игра", f"{current_game}/{total_games}")
+            
+            with col2:
+                # Если есть активный турнир, показываем его таймер
+                if active_tournament_id:
+                    # Получаем значения для отображения таймера
+                    elapsed_minutes, elapsed_seconds, remaining_minutes, remaining_seconds = calculate_tournament_time(active_tournament_id)
+                    
+                    # Форматируем строки для отображения
+                    elapsed_str = f"{elapsed_minutes:02d}:{elapsed_seconds:02d}"
+                    remaining_str = f"{remaining_minutes:02d}:{remaining_seconds:02d}"
+                    
+                    # Отображаем таймер
+                    st.metric("Время турнира", elapsed_str)
+                    st.metric("Осталось времени", remaining_str)
+                    
+                    # Получаем текущий статус турнира
+                    tournament = next((t for t in st.session_state.tournaments_list if t['id'] == active_tournament_id), None)
+                    if tournament:
+                        is_paused = tournament['pause_time'] is not None
+                        
+                        # Кнопки управления таймером
+                        if is_paused:
+                            if st.button("Возобновить турнир", key="resume_tournament"):
+                                resume_tournament_timer(active_tournament_id)
+                                st.rerun()
+                        else:
+                            if st.button("Приостановить турнир", key="pause_tournament"):
+                                pause_tournament_timer(active_tournament_id)
+                                st.rerun()
+            
+            with col3:
+                # Кнопка для начала нового турнира
+                if st.button("Новый турнир"):
+                    # Сбрасываем данные турнира
+                    st.session_state.tournament_data = {
+                        'created_at': datetime.now(),
+                        'status': 'setup',
+                        'name': '',
+                        'bracket_type': 'single',
+                        'rounds': [],
+                        'current_round': 0,
+                        'matches': [],
+                        'player_ids': [],
+                        'winners': [],
+                        'runner_ups': []
+                    }
+                    st.rerun()
+            
+            # Отображаем турнирную сетку
+            display_tournament_bracket()
+    
+    with tournament_tabs[1]:
+        # Отображаем список всех турниров
+        display_tournaments_list()
