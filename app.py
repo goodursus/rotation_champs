@@ -246,5 +246,12 @@ if st.session_state.get('timer_needs_reset', False):
     # Делаем перезагрузку страницы
     st.rerun()
 
+# Показываем уведомление о сгенерированных результатах, если оно есть
+if st.session_state.get('show_results_notification', False):
+    # Отображаем главное уведомление
+    st.success("Время вышло! Автоматически сгенерированы результаты игр. Просмотрите и сохраните их.")
+    # Сбрасываем уведомление при следующем обновлении страницы
+    st.session_state.show_results_notification = False
+
 # Включаем автообновление страницы, если таймер активен
 enable_auto_refresh()

@@ -121,19 +121,32 @@ def calculate_game_time():
     # Проверяем, нужно ли автоматически завершить игру и сгенерировать результаты
     if st.session_state.game_active and not st.session_state.game_paused:
         if remaining_seconds_total <= 0:
-            # Время игры истекло, сбрасываем таймер
+            # Время игры истекло, немедленно сбрасываем индикатор активности
+            # (чтобы другие функции видели, что таймер не активен)
+            st.session_state.game_active = False
+            
             # Отложенный импорт во избежание циклических зависимостей
             try:
                 # Проверяем, активирован ли режим автоматической генерации результатов
                 if st.session_state.get('auto_results_on_timer_end', False):
                     import court_designer as cd
-                    # Отложенно вызываем сброс таймера (после того, как сгенерируем результаты)
-                    st.session_state.timer_needs_reset = True
-                    # Генерируем результаты
-                    cd.auto_generate_results()
+                    # Генерируем результаты с настройками pickleball
+                    results = cd.auto_generate_results(
+                        consider_ratings=st.session_state.get('consider_ratings_for_results', True),
+                        display_results=False,  # Не отображаем результаты на странице дизайнера
+                        pickleball_scoring=True  # Используем правила pickleball
+                    )
+                    
+                    # Сохраняем результаты в session_state для заполнения полей ввода
+                    if results and not st.session_state.get('pending_results', None):
+                        st.session_state.pending_results = results
+                    
+                    # Отмечаем, что нужно показать уведомление
+                    st.session_state.show_results_notification = True
             except Exception as e:
                 print(f"Ошибка при автоматической генерации результатов: {str(e)}")
-                # Все равно сбрасываем таймер
-                st.session_state.timer_needs_reset = True
+            
+            # Отмечаем, что таймер нужно полностью сбросить при следующем обновлении страницы
+            st.session_state.timer_needs_reset = True
     
     return elapsed_minutes, elapsed_seconds, remaining_minutes, remaining_seconds

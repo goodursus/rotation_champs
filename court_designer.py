@@ -188,7 +188,59 @@ def convert_assignments_to_courts(df):
     
     return courts
 
-def auto_generate_results(consider_ratings=True, display_results=True):
+def generate_pickleball_score(team_a_advantage=0.0):
+    """
+    Генерирует счет по правилам pickleball (0-11 с правилом разницы в 2 очка при 10-10)
+    
+    Parameters:
+    - team_a_advantage: Рейтинговое преимущество команды A, влияет на вероятность победы (float)
+    
+    Returns:
+    - tuple (team_a_score, team_b_score)
+    """
+    # Базовая вероятность победы команды A (50% + влияние рейтинга)
+    base_prob = 0.5 + (team_a_advantage / 20)  # Преимущество до ±50%
+    team_a_wins = random.random() < base_prob
+    
+    # Генерация базовых счетов (меньше 10)
+    if team_a_wins:
+        # Команда A побеждает
+        team_a_score = random.randint(7, 11)
+        # Команда B проигрывает, счет меньше
+        max_b_score = min(team_a_score - 2, 9) if team_a_score > 10 else team_a_score - 1
+        team_b_score = random.randint(0, max(0, max_b_score))
+    else:
+        # Команда B побеждает
+        team_b_score = random.randint(7, 11)
+        # Команда A проигрывает, счет меньше
+        max_a_score = min(team_b_score - 2, 9) if team_b_score > 10 else team_b_score - 1
+        team_a_score = random.randint(0, max(0, max_a_score))
+    
+    # Проверяем особый случай 10-10 (затягивание игры)
+    if random.random() < 0.15:  # 15% шанс на затяжную игру
+        # Счет сначала 10-10
+        team_a_score = 10
+        team_b_score = 10
+        
+        # Добавляем одно или два очка, чтобы обеспечить разницу в 2 очка
+        if team_a_wins:
+            # A побеждает 12-10
+            team_a_score = 12
+        else:
+            # B побеждает 10-12
+            team_b_score = 12
+    
+    # Обеспечиваем разницу минимум в 2 очка для победителя, если счет > 10
+    if team_a_score >= 10 and team_b_score >= 10:
+        if team_a_score > team_b_score:
+            team_a_score = team_b_score + 2
+        elif team_b_score > team_a_score:
+            team_b_score = team_a_score + 2
+    
+    return team_a_score, team_b_score
+
+
+def auto_generate_results(consider_ratings=True, display_results=True, pickleball_scoring=True):
     """
     Автоматически генерирует случайные результаты игр для всех кортов
     и обновляет статистику игроков
@@ -196,6 +248,7 @@ def auto_generate_results(consider_ratings=True, display_results=True):
     Parameters:
     - consider_ratings: Если True, результаты будут генерироваться с учетом рейтингов игроков
     - display_results: Если True, результаты будут выведены на экран
+    - pickleball_scoring: Если True, использует систему счета pickleball (0-11)
     
     Returns:
     - List of generated results
@@ -225,28 +278,37 @@ def auto_generate_results(consider_ratings=True, display_results=True):
             
             # Нормализуем разницу рейтингов для влияния на результат
             rating_diff = team_a_avg_rating - team_b_avg_rating
-            rating_advantage = min(10, max(-10, rating_diff / 10))  # Максимум ±10 очков влияния
             
-            # Базовый случайный счет
-            base_score = random.randint(10, 18)
-            
-            # Учитываем рейтинг для смещения вероятности победы
-            team_a_score = max(5, min(21, int(base_score + rating_advantage + random.randint(-2, 2))))
-            
-            # Счет команды B с большей вероятностью близок к счету команды A, но с учетом рейтинга
-            noise = int(np.random.normal(0, 3))  # Меньше разброс для более предсказуемых результатов
-            team_b_score = max(5, min(21, int(base_score - rating_advantage + noise)))
+            if pickleball_scoring:
+                # Генерируем счет по правилам pickleball
+                team_a_score, team_b_score = generate_pickleball_score(float(rating_diff))
+            else:
+                # Старая логика для других систем счета
+                rating_advantage = min(10, max(-10, rating_diff / 10))  # Максимум ±10 очков влияния
+                base_score = random.randint(10, 18)
+                team_a_score = max(5, min(21, int(base_score + rating_advantage + random.randint(-2, 2))))
+                noise = int(np.random.normal(0, 3))
+                team_b_score = max(5, min(21, int(base_score - rating_advantage + noise)))
+                
+                # Обеспечиваем минимальную разницу в 2 очка для победителя
+                if team_a_score > team_b_score and team_a_score - team_b_score < 2:
+                    team_a_score = team_b_score + 2
+                elif team_b_score > team_a_score and team_b_score - team_a_score < 2:
+                    team_b_score = team_a_score + 2
         else:
             # Полностью случайная генерация
-            team_a_score = random.randint(5, 21)
-            score_diff = int(np.random.normal(0, 5))
-            team_b_score = max(5, min(21, team_a_score + score_diff))
-        
-        # Обеспечиваем минимальную разницу в 2 очка для победителя
-        if team_a_score > team_b_score and team_a_score - team_b_score < 2:
-            team_a_score = team_b_score + 2
-        elif team_b_score > team_a_score and team_b_score - team_a_score < 2:
-            team_b_score = team_a_score + 2
+            if pickleball_scoring:
+                team_a_score, team_b_score = generate_pickleball_score(0.0)  # Без преимущества
+            else:
+                team_a_score = random.randint(5, 21)
+                score_diff = int(np.random.normal(0, 5))
+                team_b_score = max(5, min(21, team_a_score + score_diff))
+                
+                # Обеспечиваем минимальную разницу в 2 очка для победителя
+                if team_a_score > team_b_score and team_a_score - team_b_score < 2:
+                    team_a_score = team_b_score + 2
+                elif team_b_score > team_a_score and team_b_score - team_a_score < 2:
+                    team_b_score = team_a_score + 2
         
         # Добавляем результаты
         results.append({
@@ -435,7 +497,69 @@ def display_player_performance():
     # Добавляем график изменения рейтинга/результатов со временем
     if len(sessions) > 1:
         st.write("#### Динамика результатов")
-        st.info("Скоро здесь появятся графики динамики результатов и рейтингов игроков за время")
+        
+        # Добавляем выбор игрока для анализа
+        players = history_df['player_name'].unique()
+        selected_player = st.selectbox("Выберите игрока для анализа", players)
+        
+        if selected_player:
+            # Получаем данные для выбранного игрока
+            player_data = history_df[history_df['player_name'] == selected_player].sort_values('timestamp')
+            
+            # Подготавливаем данные для графиков
+            chart_data = {
+                'date': player_data['timestamp'],
+                'point_diff': player_data['point_diff'].rolling(window=5, min_periods=1).mean(),
+                'cumulative_wins': player_data['won'].cumsum(),
+                'win_rate': (player_data['won'].cumsum() / range(1, len(player_data) + 1)) * 100
+            }
+            
+            chart_df = pd.DataFrame(chart_data)
+            
+            # Создаем вкладки для разных метрик
+            metric_tabs = st.tabs(["Разница очков", "Накопительные победы", "Процент побед", "Рейтинг"])
+            
+            with metric_tabs[0]:
+                st.write(f"#### Средняя разница очков для {selected_player}")
+                st.line_chart(chart_df.set_index('date')['point_diff'], use_container_width=True)
+                st.info("График показывает скользящее среднее разницы очков за последние 5 игр")
+            
+            with metric_tabs[1]:
+                st.write(f"#### Накопительное количество побед для {selected_player}")
+                st.line_chart(chart_df.set_index('date')['cumulative_wins'], use_container_width=True)
+            
+            with metric_tabs[2]:
+                st.write(f"#### Динамика процента побед для {selected_player}")
+                st.line_chart(chart_df.set_index('date')['win_rate'], use_container_width=True)
+                st.info("График показывает, как меняется процент побед с накоплением сыгранных игр")
+                
+            with metric_tabs[3]:
+                st.write(f"#### Динамика рейтинга для {selected_player}")
+                
+                # Получаем ID игрока
+                player_id = player_data['player_id'].iloc[0]
+                
+                # Подготавливаем историю рейтинга, если она есть
+                if 'rating_history' in st.session_state and player_id in st.session_state.rating_history:
+                    rating_history = st.session_state.rating_history[player_id]
+                    
+                    # Создаем DataFrame для графика
+                    rating_df = pd.DataFrame({
+                        'date': [entry['timestamp'] for entry in rating_history],
+                        'rating': [entry['rating'] for entry in rating_history]
+                    })
+                    
+                    # Преобразуем дату в формат datetime
+                    rating_df['date'] = pd.to_datetime(rating_df['date'])
+                    
+                    # Строим график
+                    st.line_chart(rating_df.set_index('date')['rating'], use_container_width=True)
+                    
+                    # Выводим текущий рейтинг
+                    current_rating = st.session_state.players_df.loc[st.session_state.players_df['id'] == player_id, 'rating'].values[0]
+                    st.info(f"Текущий рейтинг: {current_rating:.2f}")
+                else:
+                    st.info("История рейтинга пока не доступна. Для отслеживания динамики рейтинга необходимо провести больше игр.")
 
 
 def display_court_designer():

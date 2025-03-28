@@ -161,13 +161,33 @@ def display_courts(courts, players_df):
                                     else:
                                         st.write(f"- {player_name}")
                                 
-                            # Счет команды A отдельно
-                            team_a_score = st.number_input(
-                                "Team A Score", 
-                                min_value=0, 
-                                max_value=99,
-                                key=f"direct_team_a_score_{court_idx}"
-                            )
+                            # Проверяем, есть ли автоматически сгенерированные результаты для этого корта
+                            auto_score_a = None
+                            auto_score_b = None
+                            
+                            if 'pending_results' in st.session_state and st.session_state.pending_results:
+                                for result in st.session_state.pending_results:
+                                    if result['court_idx'] == court_idx:
+                                        auto_score_a = result['team_a_score']
+                                        auto_score_b = result['team_b_score']
+                                        break
+                            
+                            # Счет команды A отдельно (с предварительно заданным значением, если есть)
+                            if f"direct_team_a_score_{court_idx}" not in st.session_state and auto_score_a is not None:
+                                team_a_score = st.number_input(
+                                    "Team A Score", 
+                                    min_value=0, 
+                                    max_value=99,
+                                    value=auto_score_a,
+                                    key=f"direct_team_a_score_{court_idx}"
+                                )
+                            else:
+                                team_a_score = st.number_input(
+                                    "Team A Score", 
+                                    min_value=0, 
+                                    max_value=99,
+                                    key=f"direct_team_a_score_{court_idx}"
+                                )
                             
                             # Команда B
                             st.markdown("**Team B**")
@@ -183,13 +203,26 @@ def display_courts(courts, players_df):
                                     else:
                                         st.write(f"- {player_name}")
                                 
-                            # Счет команды B отдельно
-                            team_b_score = st.number_input(
-                                "Team B Score", 
-                                min_value=0, 
-                                max_value=99,
-                                key=f"direct_team_b_score_{court_idx}"
-                            )
+                            # Счет команды B отдельно (с предварительно заданным значением, если есть)
+                            if f"direct_team_b_score_{court_idx}" not in st.session_state and auto_score_b is not None:
+                                team_b_score = st.number_input(
+                                    "Team B Score", 
+                                    min_value=0, 
+                                    max_value=99,
+                                    value=auto_score_b,
+                                    key=f"direct_team_b_score_{court_idx}"
+                                )
+                            else:
+                                team_b_score = st.number_input(
+                                    "Team B Score", 
+                                    min_value=0, 
+                                    max_value=99,
+                                    key=f"direct_team_b_score_{court_idx}"
+                                )
+                                
+                            # Если есть уведомление о сгенерированных результатах
+                            if st.session_state.get('show_results_notification', False) and auto_score_a is not None and auto_score_b is not None:
+                                st.success(f"Автоматически сгенерирован результат: {auto_score_a} - {auto_score_b}")
                             
                             # Submit button for this court
                             if st.button("Save Result", key=f"save_result_{court_idx}"):

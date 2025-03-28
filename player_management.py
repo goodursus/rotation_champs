@@ -43,6 +43,24 @@ def manage_players():
                 'rating': [0] * num_new_players
             })
             
+            # Инициализируем историю рейтинга для новых игроков
+            if 'rating_history' not in st.session_state:
+                st.session_state.rating_history = {}
+                
+            # Получаем текущее время для записи в историю
+            from datetime import datetime
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                
+            # Создаем начальную запись рейтинга для каждого нового игрока
+            for player_id in new_ids:
+                if player_id not in st.session_state.rating_history:
+                    st.session_state.rating_history[player_id] = []
+                    
+                st.session_state.rating_history[player_id].append({
+                    'timestamp': timestamp,
+                    'rating': 0.0
+                })
+            
             st.session_state.players_df = pd.concat([st.session_state.players_df, new_players], ignore_index=True)
         else:
             # Players removed
@@ -65,12 +83,45 @@ def calculate_ratings():
     Calculate player ratings based on wins, losses and point differences
     """
     if len(st.session_state.players_df) > 0:
+        # Сохраняем предыдущие рейтинги для отслеживания изменений
+        old_ratings = {}
+        if 'players_df' in st.session_state:
+            for _, row in st.session_state.players_df.iterrows():
+                old_ratings[row['id']] = row['rating']
+        
         # Simple rating formula: (wins - losses) + (points_difference / 100)
         st.session_state.players_df['rating'] = (
             st.session_state.players_df['wins'] - 
             st.session_state.players_df['losses'] + 
             st.session_state.players_df['points_difference'] / 100
         )
+        
+        # Обновляем историю рейтингов для каждого игрока
+        if 'rating_history' not in st.session_state:
+            st.session_state.rating_history = {}
+            
+        # Получаем текущее время для записи в историю
+        from datetime import datetime
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            
+        # Обновляем историю рейтингов для каждого игрока
+        for _, row in st.session_state.players_df.iterrows():
+            player_id = row['id']
+            current_rating = row['rating']
+            
+            # Пропускаем, если рейтинг не изменился
+            if player_id in old_ratings and abs(old_ratings[player_id] - current_rating) < 0.001:
+                continue
+                
+            # Создаем запись для игрока, если ее еще нет
+            if player_id not in st.session_state.rating_history:
+                st.session_state.rating_history[player_id] = []
+                
+            # Добавляем новую запись в историю
+            st.session_state.rating_history[player_id].append({
+                'timestamp': timestamp,
+                'rating': current_rating
+            })
 
 def display_player_stats():
     """
