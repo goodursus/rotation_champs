@@ -9,6 +9,7 @@ import timer as tm
 import tournament as tr
 import player_matching as match
 import court_designer as designer
+import leaderboard as lb
 
 # Set page configuration
 st.set_page_config(
@@ -76,7 +77,7 @@ if 'matchmaking_strategy' not in st.session_state:
 st.title("Rotation Players")
 
 # Create tabs for separating content
-tab1, tab2, tab3, tab4 = st.tabs(["Courts & Timer", "Player Statistics", "Tournament", "Court Designer"])
+tab1, tab2, tab3, tab4, tab5 = st.tabs(["Courts & Timer", "Player Statistics", "Tournament", "Leaderboard", "Court Designer"])
 
 with tab1:
     # Create layout with two columns
@@ -241,6 +242,16 @@ with tab3:
     tr.display_tournament()
 
 with tab4:
+    # Отображаем динамическую таблицу лидеров
+    st.header("Leaderboard")
+    # Основная таблица лидеров
+    lb.display_leaderboard()
+    
+    # Демо возможностей анимации
+    with st.expander("Демо анимации таблицы лидеров"):
+        lb.display_leaderboard_animation_demo()
+
+with tab5:
     # Отображаем дизайнер кортов
     st.header("Court Designer")
     designer.display_court_designer()
