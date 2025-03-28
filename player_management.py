@@ -194,5 +194,107 @@ def update_player_stats(court_idx, team_a_score, team_b_score):
             
         st.session_state.players_df.at[player_idx, 'points_difference'] -= score_diff
     
+    # Сохраняем историю игры
+    save_game_history(court_idx, court, team_a_score, team_b_score)
+    
     # Recalculate ratings
     calculate_ratings()
+
+def save_game_history(court_idx, court, team_a_score, team_b_score):
+    """
+    Сохраняет историю игр для будущего анализа
+    
+    Parameters:
+    - court_idx: Индекс корта
+    - court: Информация о корте
+    - team_a_score: Счет команды A
+    - team_b_score: Счет команды B
+    """
+    # Проверяем, есть ли структура для истории
+    if 'game_history' not in st.session_state:
+        st.session_state.game_history = []
+    
+    # Определяем, в рамках какого турнира проводится игра
+    tournament_info = {}
+    active_tournament_id = st.session_state.get('active_tournament_id')
+    
+    if active_tournament_id is not None and 'tournaments_list' in st.session_state:
+        # Находим активный турнир
+        tournament = next((t for t in st.session_state.tournaments_list if t['id'] == active_tournament_id), None)
+        if tournament:
+            tournament_info = {
+                'tournament_id': tournament['id'],
+                'tournament_name': tournament['name'],
+                'game_number': tournament.get('current_game', 0) + 1,
+                'total_games': tournament.get('total_games', 0)
+            }
+    
+    # Создаем запись о новой игре
+    from datetime import datetime
+    
+    game_record = {
+        'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        'court_number': court.get('court_number', court_idx + 1),
+        'team_a_players': court['team_a'],
+        'team_b_players': court['team_b'],
+        'team_a_score': team_a_score,
+        'team_b_score': team_b_score,
+        'tournament': tournament_info
+    }
+    
+    # Добавляем запись в историю
+    st.session_state.game_history.append(game_record)
+    
+    # Если история турнира еще не инициализирована
+    if 'tournament_history' not in st.session_state:
+        st.session_state.tournament_history = {}
+    
+    # Если есть информация о турнире, добавляем эту игру в историю турнира
+    if tournament_info and 'tournament_id' in tournament_info:
+        tournament_id = tournament_info['tournament_id']
+        
+        # Создаем запись для турнира, если её еще нет
+        if tournament_id not in st.session_state.tournament_history:
+            st.session_state.tournament_history[tournament_id] = {
+                'tournament_info': tournament_info,
+                'games': [],
+                'player_stats': {}  # Для сохранения статистики игроков в этом турнире
+            }
+        
+        # Добавляем игру в историю турнира
+        st.session_state.tournament_history[tournament_id]['games'].append(game_record)
+        
+        # Обновляем статистику игроков в этом турнире
+        # Для команды A
+        for player_id in court['team_a']:
+            if player_id not in st.session_state.tournament_history[tournament_id]['player_stats']:
+                st.session_state.tournament_history[tournament_id]['player_stats'][player_id] = {
+                    'wins': 0, 'losses': 0, 'points_scored': 0, 'points_conceded': 0
+                }
+            
+            player_stats = st.session_state.tournament_history[tournament_id]['player_stats'][player_id]
+            
+            if team_a_score > team_b_score:
+                player_stats['wins'] += 1
+            else:
+                player_stats['losses'] += 1
+                
+            player_stats['points_scored'] += team_a_score
+            player_stats['points_conceded'] += team_b_score
+        
+        # Для команды B
+        for player_id in court['team_b']:
+            if player_id not in st.session_state.tournament_history[tournament_id]['player_stats']:
+                st.session_state.tournament_history[tournament_id]['player_stats'][player_id] = {
+                    'wins': 0, 'losses': 0, 'points_scored': 0, 'points_conceded': 0
+                }
+            
+            player_stats = st.session_state.tournament_history[tournament_id]['player_stats'][player_id]
+            
+            if team_b_score > team_a_score:
+                player_stats['wins'] += 1
+            else:
+                player_stats['losses'] += 1
+                
+            player_stats['points_scored'] += team_b_score
+            player_stats['points_conceded'] += team_a_score

@@ -85,6 +85,60 @@ def display_courts(courts, players_df):
     - courts: List of court dictionaries
     - players_df: DataFrame with player information
     """
+    # Отображаем информацию об активном турнире сверху, если есть
+    active_tournament_id = st.session_state.get('active_tournament_id')
+    if active_tournament_id is not None and 'tournaments_list' in st.session_state:
+        # Находим активный турнир
+        tournament = next((t for t in st.session_state.tournaments_list if t['id'] == active_tournament_id), None)
+        if tournament:
+            # Создаем контейнер для сводной информации о турнире
+            with st.container(border=True):
+                col1, col2, col3 = st.columns([2, 2, 1])
+                
+                with col1:
+                    # Базовая информация о турнире
+                    st.markdown(f"### Активный турнир: {tournament['name']}")
+                    
+                    # Прогресс игр
+                    current_game = tournament.get('current_game', 0)
+                    total_games = tournament.get('total_games', 0)
+                    st.markdown(f"**Игра:** {current_game + 1}/{total_games}")
+                
+                with col2:
+                    # Информация о времени турнира
+                    import tournament as tr
+                    elapsed_minutes, elapsed_seconds, remaining_minutes, remaining_seconds = tr.calculate_tournament_time(active_tournament_id)
+                    
+                    # Статус турнира
+                    is_paused = tournament.get('pause_time') is not None
+                    status_text = "⏸️ На паузе" if is_paused else "▶️ Активен"
+                    st.markdown(f"**Статус:** {status_text}")
+                    
+                    # Время
+                    st.markdown(f"**Время турнира:** {elapsed_minutes:02d}:{elapsed_seconds:02d}")
+                    st.markdown(f"**Осталось:** {remaining_minutes:02d}:{remaining_seconds:02d}")
+                
+                with col3:
+                    # Кнопки управления турниром
+                    if is_paused:
+                        if st.button("Возобновить", key="resume_tournament_main"):
+                            tr.resume_tournament_timer(active_tournament_id)
+                            st.rerun()
+                    else:
+                        if st.button("Пауза", key="pause_tournament_main"):
+                            tr.pause_tournament_timer(active_tournament_id)
+                            st.rerun()
+                            
+                    # Кнопка для завершения игры
+                    if st.button("➡️ Следующая игра", key="next_game"):
+                        if current_game < total_games - 1:
+                            # Увеличиваем счетчик текущей игры
+                            tournament_idx = next((i for i, t in enumerate(st.session_state.tournaments_list) 
+                                                if t['id'] == active_tournament_id), None)
+                            if tournament_idx is not None:
+                                st.session_state.tournaments_list[tournament_idx]['current_game'] += 1
+                        st.rerun()
+    
     # Calculate number of columns for layout
     num_courts = len(courts)
     cols_per_row = 3
@@ -100,8 +154,33 @@ def display_courts(courts, players_df):
             if court_idx < num_courts:
                 court = courts[court_idx]
                 
-                # Choose background color - rest court is different
-                bg_color = "#f0f0f0" if not court['is_rest'] else "#e0f7fa"
+                # Проверяем, есть ли результат для этого корта
+                team_a_score_key = f"direct_team_a_score_{court_idx}"
+                team_b_score_key = f"direct_team_b_score_{court_idx}"
+                
+                team_a_score = st.session_state.get(team_a_score_key, None)
+                team_b_score = st.session_state.get(team_b_score_key, None)
+                
+                # Определяем, есть ли победитель и проигравший
+                winner_bg = "#e6ffe6"  # светло-зеленый для победителей
+                loser_bg = "#fff9e0"   # светло-желтый для проигравших
+                default_bg = "#f0f0f0" # стандартный фон
+                rest_bg = "#e0f7fa"    # фон для отдыха
+                
+                # Выбираем цвет фона
+                bg_color = rest_bg if court['is_rest'] else default_bg
+                
+                # Проверяем результаты и устанавливаем фон
+                team_a_style = ""
+                team_b_style = ""
+                
+                if not court['is_rest'] and team_a_score is not None and team_b_score is not None:
+                    if team_a_score > team_b_score:
+                        team_a_style = f"background-color: {winner_bg}; padding: 8px; border-radius: 4px;"
+                        team_b_style = f"background-color: {loser_bg}; padding: 8px; border-radius: 4px;"
+                    elif team_b_score > team_a_score:
+                        team_a_style = f"background-color: {loser_bg}; padding: 8px; border-radius: 4px;"
+                        team_b_style = f"background-color: {winner_bg}; padding: 8px; border-radius: 4px;"
                 
                 with cols[col]:
                     with st.container(border=True):
@@ -144,22 +223,32 @@ def display_courts(courts, players_df):
                             team_b_names = [players_df.loc[players_df['id'] == player_id, 'name'].values[0] 
                                            for player_id in court['team_b']]
                             
-                            # Используем HTML для размещения счета рядом с именем игрока
-                            st.markdown("**Team A**")
+                            # Используем HTML для подсветки победителей/проигравших
+                            if team_a_style:
+                                st.markdown(f'<div style="{team_a_style}"><strong>Team A</strong></div>', unsafe_allow_html=True)
+                            else:
+                                st.markdown("**Team A**")
                             
                             # Проверяем, нужно ли отображать рейтинги
                             show_ratings = st.session_state.get('matchmaking_strategy', '') == 'Сбалансированные команды по навыкам'
                             
-                            # Игроки команды A
+                            # Игроки команды A с подсветкой если есть результат
+                            team_a_div = '<div style="{}">'.format(team_a_style) if team_a_style else '<div>'
                             for i, player_id in enumerate(court['team_a']):
                                 if i < len(team_a_names):
                                     player_name = team_a_names[i]
                                     if show_ratings:
                                         # Получаем рейтинг игрока
                                         player_rating = players_df.loc[players_df['id'] == player_id, 'rating'].values[0]
-                                        st.write(f"- {player_name} *(рейтинг: {player_rating:.2f})*")
+                                        if team_a_style:
+                                            st.markdown(f'{team_a_div}- {player_name} <em>(рейтинг: {player_rating:.2f})</em></div>', unsafe_allow_html=True)
+                                        else:
+                                            st.write(f"- {player_name} *(рейтинг: {player_rating:.2f})*")
                                     else:
-                                        st.write(f"- {player_name}")
+                                        if team_a_style:
+                                            st.markdown(f'{team_a_div}- {player_name}</div>', unsafe_allow_html=True)
+                                        else:
+                                            st.write(f"- {player_name}")
                                 
                             # Проверяем, есть ли автоматически сгенерированные результаты для этого корта
                             auto_score_a = None
@@ -189,19 +278,29 @@ def display_courts(courts, players_df):
                                     key=f"direct_team_a_score_{court_idx}"
                                 )
                             
-                            # Команда B
-                            st.markdown("**Team B**")
+                            # Команда B с подсветкой
+                            if team_b_style:
+                                st.markdown(f'<div style="{team_b_style}"><strong>Team B</strong></div>', unsafe_allow_html=True)
+                            else:
+                                st.markdown("**Team B**")
                             
-                            # Игроки команды B
+                            # Игроки команды B с подсветкой
+                            team_b_div = '<div style="{}">'.format(team_b_style) if team_b_style else '<div>'
                             for i, player_id in enumerate(court['team_b']):
                                 if i < len(team_b_names):
                                     player_name = team_b_names[i]
                                     if show_ratings:
                                         # Получаем рейтинг игрока
                                         player_rating = players_df.loc[players_df['id'] == player_id, 'rating'].values[0]
-                                        st.write(f"- {player_name} *(рейтинг: {player_rating:.2f})*")
+                                        if team_b_style:
+                                            st.markdown(f'{team_b_div}- {player_name} <em>(рейтинг: {player_rating:.2f})</em></div>', unsafe_allow_html=True)
+                                        else:
+                                            st.write(f"- {player_name} *(рейтинг: {player_rating:.2f})*")
                                     else:
-                                        st.write(f"- {player_name}")
+                                        if team_b_style:
+                                            st.markdown(f'{team_b_div}- {player_name}</div>', unsafe_allow_html=True)
+                                        else:
+                                            st.write(f"- {player_name}")
                                 
                             # Счет команды B отдельно (с предварительно заданным значением, если есть)
                             if f"direct_team_b_score_{court_idx}" not in st.session_state and auto_score_b is not None:

@@ -523,6 +523,52 @@ def display_tournaments_list():
         
         for t in sample_tournaments:
             st.session_state.tournaments_list.append(t)
+            
+    # Добавляем возможность удаления турниров
+    with st.expander("Управление турнирами (для тестирования)"):
+        st.markdown("**Удаление турнира**")
+        tournaments_for_deletion = []
+        
+        for tournament in st.session_state.tournaments_list:
+            tournaments_for_deletion.append(f"{tournament['id']} - {tournament['name']} ({tournament['date']})")
+        
+        if tournaments_for_deletion:
+            selected_tournament = st.selectbox(
+                "Выберите турнир для удаления", 
+                tournaments_for_deletion,
+                key="tournament_to_delete"
+            )
+            
+            # Извлекаем ID из выбранной строки
+            if selected_tournament:
+                tournament_id = int(selected_tournament.split(' - ')[0])
+                
+                # Проверяем, не является ли выбранный турнир активным
+                is_active = tournament_id == st.session_state.get('active_tournament_id')
+                
+                if is_active:
+                    st.warning("Нельзя удалить активный турнир. Сначала завершите его.")
+                
+                # Создаем кнопку удаления, которая неактивна, если турнир активен
+                confirm_deletion = st.button("Удалить выбранный турнир", key="confirm_deletion", disabled=is_active)
+                
+                if confirm_deletion:
+                    # Находим индекс турнира в списке
+                    tournament_idx = next(
+                        (i for i, t in enumerate(st.session_state.tournaments_list) if t['id'] == tournament_id), 
+                        None
+                    )
+                    
+                    if tournament_idx is not None:
+                        # Удаляем турнир
+                        st.session_state.tournaments_list.pop(tournament_idx)
+                        st.success("Турнир успешно удален!")
+                        
+                        # Если был выбран удаленный турнир, сбрасываем выбор
+                        if st.session_state.get('selected_tournament_id') == tournament_id:
+                            st.session_state.selected_tournament_id = None
+                        
+                        st.rerun()
     
     # Создаем таблицу турниров
     tournaments_df = pd.DataFrame(st.session_state.tournaments_list)
@@ -781,12 +827,142 @@ def calculate_tournament_time(tournament_id):
     
     return elapsed_minutes, elapsed_seconds, remaining_minutes, remaining_seconds
 
+def display_tournament_history():
+    """
+    Отображает историю турниров и статистику игроков по турнирам
+    """
+    if 'tournament_history' not in st.session_state or not st.session_state.tournament_history:
+        st.info("История турниров пуста. Проведите хотя бы один турнир для отображения истории.")
+        return
+    
+    # Выбор турнира для просмотра истории
+    tournament_options = []
+    for tournament_id, data in st.session_state.tournament_history.items():
+        if 'tournament_info' in data and 'tournament_name' in data['tournament_info']:
+            tournament_options.append(f"{tournament_id} - {data['tournament_info']['tournament_name']}")
+    
+    if not tournament_options:
+        st.info("Нет данных о завершенных турнирах.")
+        return
+    
+    selected_tournament = st.selectbox("Выберите турнир для просмотра истории", tournament_options)
+    
+    if selected_tournament:
+        # Извлекаем ID турнира из выбора
+        tournament_id = int(selected_tournament.split(' - ')[0])
+        
+        # Получаем данные турнира
+        tournament_data = st.session_state.tournament_history.get(tournament_id)
+        
+        if not tournament_data:
+            st.error("Данные о турнире не найдены.")
+            return
+        
+        # Отображаем информацию о турнире
+        tournament_info = tournament_data.get('tournament_info', {})
+        st.subheader(f"История турнира: {tournament_info.get('tournament_name', 'Неизвестный турнир')}")
+        
+        # Суммарная статистика турнира
+        games = tournament_data.get('games', [])
+        
+        st.write(f"Всего игр: {len(games)}")
+        
+        # Таблица игр
+        if games:
+            games_data = []
+            for i, game in enumerate(games):
+                team_a_names = []
+                team_b_names = []
+                
+                # Получаем имена игроков
+                for player_id in game['team_a_players']:
+                    player_name = st.session_state.players_df.loc[st.session_state.players_df['id'] == player_id, 'name'].values[0]
+                    team_a_names.append(player_name)
+                
+                for player_id in game['team_b_players']:
+                    player_name = st.session_state.players_df.loc[st.session_state.players_df['id'] == player_id, 'name'].values[0]
+                    team_b_names.append(player_name)
+                
+                games_data.append({
+                    'game_number': i + 1,
+                    'court_number': game['court_number'],
+                    'team_a': ', '.join(team_a_names),
+                    'team_b': ', '.join(team_b_names),
+                    'score': f"{game['team_a_score']} - {game['team_b_score']}",
+                    'timestamp': game['timestamp']
+                })
+            
+            games_df = pd.DataFrame(games_data)
+            
+            # Отображаем таблицу игр
+            st.write("### Игры турнира")
+            st.dataframe(
+                games_df,
+                column_config={
+                    'game_number': 'Игра',
+                    'court_number': 'Корт',
+                    'team_a': 'Команда A',
+                    'team_b': 'Команда B',
+                    'score': 'Счет (A-B)',
+                    'timestamp': 'Время'
+                },
+                use_container_width=True,
+                hide_index=True
+            )
+        
+        # Статистика игроков
+        st.write("### Статистика игроков по турниру")
+        
+        player_stats = tournament_data.get('player_stats', {})
+        
+        if player_stats:
+            player_stats_data = []
+            
+            for player_id, stats in player_stats.items():
+                player_name = st.session_state.players_df.loc[st.session_state.players_df['id'] == player_id, 'name'].values[0]
+                
+                # Рассчитываем процент побед
+                total_games = stats['wins'] + stats['losses']
+                win_rate = (stats['wins'] / total_games * 100) if total_games > 0 else 0
+                
+                player_stats_data.append({
+                    'player_name': player_name,
+                    'games': total_games,
+                    'wins': stats['wins'],
+                    'losses': stats['losses'],
+                    'win_rate': f"{win_rate:.1f}%",
+                    'points_scored': stats['points_scored'],
+                    'points_conceded': stats['points_conceded'],
+                    'points_difference': stats['points_scored'] - stats['points_conceded']
+                })
+            
+            # Сортируем по проценту побед
+            player_stats_df = pd.DataFrame(player_stats_data)
+            player_stats_df = player_stats_df.sort_values(by='wins', ascending=False)
+            
+            # Отображаем таблицу со статистикой
+            st.dataframe(
+                player_stats_df,
+                column_config={
+                    'player_name': 'Игрок',
+                    'games': 'Игры',
+                    'wins': 'Победы',
+                    'losses': 'Поражения',
+                    'win_rate': 'Процент побед',
+                    'points_scored': 'Очки забиты',
+                    'points_conceded': 'Очки пропущены',
+                    'points_difference': 'Разница очков'
+                },
+                use_container_width=True,
+                hide_index=True
+            )
+
 def display_tournament():
     """
     Основная функция для отображения интерфейса турнира
     """
     # Добавляем вкладки для разных разделов
-    tournament_tabs = st.tabs(["Текущий турнир", "Список турниров"])
+    tournament_tabs = st.tabs(["Текущий турнир", "Список турниров", "История турниров"])
     
     with tournament_tabs[0]:
         # Отображаем текущий турнир
@@ -874,3 +1050,7 @@ def display_tournament():
     with tournament_tabs[1]:
         # Отображаем список всех турниров
         display_tournaments_list()
+        
+    with tournament_tabs[2]:
+        # Отображаем историю турниров
+        display_tournament_history()

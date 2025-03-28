@@ -187,23 +187,31 @@ with tab1:
         
         col_btn1, col_btn2, col_btn3, col_btn4 = st.columns(4)
         
+        # Проверяем, активен ли турнир
+        active_tournament_id = st.session_state.get('active_tournament_id')
+        tournament_active = active_tournament_id is not None
+        
+        # Если турнир не активен, блокируем кнопки таймера с пояснением
+        if not tournament_active:
+            st.warning("Для активации таймера необходимо запустить турнир на вкладке 'Tournament'")
+        
         with col_btn1:
             if not st.session_state.game_active:
-                if st.button("Start Game", use_container_width=True):
+                if st.button("Start Game", use_container_width=True, disabled=not tournament_active):
                     tm.start_game()
                     st.rerun()
             else:
                 if st.session_state.game_paused:
-                    if st.button("Resume Game", use_container_width=True):
+                    if st.button("Resume Game", use_container_width=True, disabled=not tournament_active):
                         tm.resume_game()
                         st.rerun()
                 else:
-                    if st.button("Pause Game", use_container_width=True):
+                    if st.button("Pause Game", use_container_width=True, disabled=not tournament_active):
                         tm.pause_game()
                         st.rerun()
         
         with col_btn2:
-            if st.button("Reset Timer", use_container_width=True):
+            if st.button("Reset Timer", use_container_width=True, disabled=not tournament_active):
                 tm.reset_game()
                 st.rerun()
         

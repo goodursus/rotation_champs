@@ -202,39 +202,56 @@ def generate_pickleball_score(team_a_advantage=0.0):
     base_prob = 0.5 + (team_a_advantage / 20)  # Преимущество до ±50%
     team_a_wins = random.random() < base_prob
     
-    # Генерация базовых счетов (меньше 10)
+    # Генерация счета
     if team_a_wins:
-        # Команда A побеждает
-        team_a_score = random.randint(7, 11)
+        # Команда A побеждает - счет минимум 11
+        team_a_score = random.randint(11, 15)
         # Команда B проигрывает, счет меньше
-        max_b_score = min(team_a_score - 2, 9) if team_a_score > 10 else team_a_score - 1
-        team_b_score = random.randint(0, max(0, max_b_score))
+        if team_a_score == 11:
+            # При счете 11, проигравший может иметь от 0 до 9
+            team_b_score = random.randint(0, 9)
+        else:
+            # При счете больше 11, разница должна быть минимум 2 очка
+            team_b_score = team_a_score - 2 - random.randint(0, 2)
     else:
-        # Команда B побеждает
-        team_b_score = random.randint(7, 11)
+        # Команда B побеждает - счет минимум 11
+        team_b_score = random.randint(11, 15)
         # Команда A проигрывает, счет меньше
-        max_a_score = min(team_b_score - 2, 9) if team_b_score > 10 else team_b_score - 1
-        team_a_score = random.randint(0, max(0, max_a_score))
+        if team_b_score == 11:
+            # При счете 11, проигравший может иметь от 0 до 9
+            team_a_score = random.randint(0, 9)
+        else:
+            # При счете больше 11, разница должна быть минимум 2 очка
+            team_a_score = team_b_score - 2 - random.randint(0, 2)
     
     # Проверяем особый случай 10-10 (затягивание игры)
-    if random.random() < 0.15:  # 15% шанс на затяжную игру
+    if random.random() < 0.25:  # 25% шанс на затяжную игру
         # Счет сначала 10-10
-        team_a_score = 10
-        team_b_score = 10
+        base_score = 10
+        extra_points = random.randint(1, 4)  # Дополнительные очки
         
-        # Добавляем одно или два очка, чтобы обеспечить разницу в 2 очка
+        # Добавляем очки, чтобы обеспечить разницу в 2
         if team_a_wins:
-            # A побеждает 12-10
-            team_a_score = 12
+            # A побеждает (минимум 12-10)
+            team_a_score = base_score + extra_points + 2
+            team_b_score = base_score + extra_points
         else:
-            # B побеждает 10-12
-            team_b_score = 12
+            # B побеждает (минимум 10-12)
+            team_b_score = base_score + extra_points + 2
+            team_a_score = base_score + extra_points
     
-    # Обеспечиваем разницу минимум в 2 очка для победителя, если счет > 10
-    if team_a_score >= 10 and team_b_score >= 10:
-        if team_a_score > team_b_score:
+    # Финальная проверка - победитель должен иметь минимум 11 очков
+    if team_a_score > team_b_score:
+        team_a_score = max(11, team_a_score)
+    else:
+        team_b_score = max(11, team_b_score)
+    
+    # Обеспечиваем разницу минимум в 2 очка для победителя
+    if team_a_score > team_b_score:
+        if team_a_score - team_b_score < 2:
             team_a_score = team_b_score + 2
-        elif team_b_score > team_a_score:
+    else:
+        if team_b_score - team_a_score < 2:
             team_b_score = team_a_score + 2
     
     return team_a_score, team_b_score
