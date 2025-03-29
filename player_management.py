@@ -5,11 +5,60 @@ import numpy as np
 def manage_players():
     """
     Function to manage players - add, edit and delete players
+    
+    If a tournament is active, shows only participants of that tournament
+    Otherwise shows full player management interface
     """
-    # Display the players table with editable cells
+    # Check if there's an active tournament
+    active_tournament_id = st.session_state.get('active_tournament_id')
+    
+    if active_tournament_id is not None:
+        # Tournament is active - show only participants
+        tournament = next((t for t in st.session_state.tournaments_list if t['id'] == active_tournament_id), None)
+        
+        if tournament and 'participants' in tournament and tournament['participants']:
+            # Get participants DataFrame
+            participants_ids = tournament['participants']
+            participants_df = st.session_state.players_df[st.session_state.players_df['id'].isin(participants_ids)]
+            
+            # Display tournament participants table (non-editable)
+            st.subheader(f"Tournament Participants ({len(participants_df)} players)")
+            st.dataframe(
+                participants_df[['name', 'wins', 'losses', 'points_difference', 'rating']],
+                use_container_width=True,
+                column_config={
+                    "name": "Player Name",
+                    "wins": "Wins",
+                    "losses": "Losses",
+                    "points_difference": "Points Difference",
+                    "rating": st.column_config.NumberColumn(
+                        "Rating",
+                        help="Player rating based on performance",
+                        format="%.2f",
+                    ),
+                },
+                hide_index=True,
+            )
+            
+            # Show how many players can be added based on the tournament limit
+            if 'players_limit' in tournament:
+                limit = tournament.get('players_limit', 0)
+                if limit > 0:
+                    remaining = max(0, limit - len(participants_ids))
+                    if remaining > 0:
+                        st.info(f"Tournament limit: {limit} players. You can add {remaining} more players.")
+                    else:
+                        st.warning(f"Tournament player limit ({limit}) reached. Cannot add more players.")
+        else:
+            st.warning("No participants added to this tournament yet.")
+            st.button("Add Players", key="btn_add_players", on_click=lambda: st.session_state.update({"show_tournament_tab": True}))
+        
+        return
+    
+    # No active tournament - show full player management interface
     edited_df = st.data_editor(
         st.session_state.players_df[['name', 'email', 'phone', 'wins', 'losses', 'points_difference', 'rating']],
-        num_rows="dynamic",
+        num_rows="dynamic", 
         use_container_width=True,
         column_config={
             "name": "Player Name",

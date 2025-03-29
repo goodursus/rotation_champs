@@ -26,7 +26,11 @@ def create_tournament(players_df):
             'matches': [],
             'player_ids': [],
             'winners': [],
-            'runner_ups': []
+            'runner_ups': [],
+            'duration_minutes': 120,  # Длительность турнира (2 часа по умолчанию)
+            'game_duration_minutes': 15,  # Длительность одной игры
+            'players_limit': 0,  # Ограничение на количество игроков (0 = без ограничений)
+            'participants': []  # Список ID игроков-участников (используется после создания турнира)
         }
     
     return st.session_state.tournament_data
@@ -171,6 +175,41 @@ def display_tournament_setup():
         else:
             tournament_data['bracket_type'] = 'double'
     
+    # Добавляем настройки времени и ограничения по игрокам
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        # Продолжительность турнира
+        tournament_duration = st.number_input(
+            "Продолжительность турнира (мин)", 
+            min_value=30, 
+            max_value=480, 
+            value=tournament_data.get('duration_minutes', 120),
+            step=10
+        )
+        tournament_data['duration_minutes'] = tournament_duration
+    
+    with col2:
+        # Продолжительность одной игры
+        game_duration = st.number_input(
+            "Продолжительность игры (мин)", 
+            min_value=5, 
+            max_value=60, 
+            value=tournament_data.get('game_duration_minutes', 15),
+            step=5
+        )
+        tournament_data['game_duration_minutes'] = game_duration
+    
+    with col3:
+        # Ограничение по количеству игроков
+        players_limit = st.number_input(
+            "Лимит игроков (0 = без ограничений)", 
+            min_value=0, 
+            max_value=100, 
+            value=tournament_data.get('players_limit', 0)
+        )
+        tournament_data['players_limit'] = players_limit
+    
     # Выбор игроков для турнира
     st.subheader("Выберите участников турнира")
     
@@ -179,13 +218,27 @@ def display_tournament_setup():
         # Создаем список для отслеживания выбранных игроков
         selected_players = []
         
+        # Проверяем ограничение на количество игроков
+        players_limit = tournament_data.get('players_limit', 0)
+        
         # Отображаем игроков в виде таблицы с чекбоксами
         for index, player in st.session_state.players_df.iterrows():
             col1, col2 = st.columns([1, 5])
+            
+            # Определяем, должен ли чекбокс быть активным
+            disabled = False
+            if players_limit > 0 and len(selected_players) >= players_limit:
+                # Если достигнут лимит игроков и этот игрок еще не выбран - блокируем
+                if player['id'] not in tournament_data.get('player_ids', []):
+                    disabled = True
+            
             with col1:
-                selected = st.checkbox("", 
-                                     value=player['id'] in tournament_data.get('player_ids', []),
-                                     key=f"player_{player['id']}")
+                selected = st.checkbox(
+                    "", 
+                    value=player['id'] in tournament_data.get('player_ids', []),
+                    key=f"player_{player['id']}",
+                    disabled=disabled
+                )
             with col2:
                 st.write(f"{player['name']} (Рейтинг: {player['rating']:.2f})")
             
@@ -194,13 +247,24 @@ def display_tournament_setup():
         
         tournament_data['player_ids'] = selected_players
         
-        # Отображаем количество выбранных игроков
-        st.write(f"Выбрано игроков: {len(selected_players)}")
+        # Отображаем количество выбранных игроков и лимит
+        if players_limit > 0:
+            st.write(f"Выбрано игроков: {len(selected_players)} / {players_limit}")
+            
+            # Если превышен лимит (могло произойти при изменении лимита после выбора)
+            if len(selected_players) > players_limit:
+                st.warning(f"Выбрано больше игроков, чем разрешено лимитом. Пожалуйста, снимите выбор с {len(selected_players) - players_limit} игроков.")
+        else:
+            st.write(f"Выбрано игроков: {len(selected_players)}")
         
         # Проверка минимального количества игроков для турнира
         min_players = 4
         if len(selected_players) < min_players:
             st.warning(f"Для создания турнира необходимо выбрать не менее {min_players} игроков.")
+            can_start = False
+        # Проверка соответствия лимиту
+        elif players_limit > 0 and len(selected_players) > players_limit:
+            st.warning(f"Превышен лимит игроков. Снимите выбор с {len(selected_players) - players_limit} игроков.")
             can_start = False
         else:
             can_start = True
@@ -208,8 +272,14 @@ def display_tournament_setup():
         # Кнопка для генерации турнирной сетки
         if can_start:
             if st.button("Создать турнирную сетку"):
+                # Генерируем турнирную сетку
                 tournament_data = generate_bracket(tournament_data, selected_players)
                 tournament_data['status'] = 'active'
+                
+                # Сохраняем список участников
+                tournament_data['participants'] = selected_players
+                
+                # Обновляем турнир
                 st.session_state.tournament_data = tournament_data
                 st.success("Турнирная сетка успешно создана!")
                 st.rerun()
@@ -498,12 +568,14 @@ def display_tournaments_list():
                 'duration_minutes': 120,
                 'game_duration_minutes': 15,
                 'players_count': 22,
+                'players_limit': 24,
                 'status': 'completed',
                 'current_game': 0,
                 'total_games': 8,
                 'start_time': None,
                 'pause_time': None,
-                'elapsed_pause_time': 0
+                'elapsed_pause_time': 0,
+                'participants': []
             },
             {
                 'id': 2,
@@ -512,12 +584,14 @@ def display_tournaments_list():
                 'duration_minutes': 90,
                 'game_duration_minutes': 10,
                 'players_count': 18,
+                'players_limit': 20,
                 'status': 'planned',
                 'current_game': 0,
                 'total_games': 6,
                 'start_time': None,
                 'pause_time': None,
-                'elapsed_pause_time': 0
+                'elapsed_pause_time': 0,
+                'participants': []
             }
         ]
         
@@ -659,6 +733,17 @@ def display_tournaments_list():
                     st.session_state.tournaments_list[tournament_idx]['date'] = row['date']
                     st.session_state.tournaments_list[tournament_idx]['duration_minutes'] = row['duration_minutes']
                     st.session_state.tournaments_list[tournament_idx]['game_duration_minutes'] = row['game_duration_minutes']
+                    
+                    # Обновляем количество игроков и пересчитываем лимит, если он не был изменен вручную
+                    old_players_count = st.session_state.tournaments_list[tournament_idx]['players_count']
+                    old_players_limit = st.session_state.tournaments_list[tournament_idx]['players_limit']
+                    
+                    # Проверяем, был ли лимит игроков равен количеству (т.е. не изменялся вручную)
+                    if old_players_count == old_players_limit:
+                        # Если лимит не менялся вручную, то обновляем его вместе с count
+                        st.session_state.tournaments_list[tournament_idx]['players_limit'] = row['players_count']
+                    
+                    # В любом случае обновляем количество игроков
                     st.session_state.tournaments_list[tournament_idx]['players_count'] = row['players_count']
     else:
         st.info("Нет доступных турниров")
@@ -691,12 +776,14 @@ def display_tournaments_list():
             'duration_minutes': new_duration,
             'game_duration_minutes': new_game_duration,
             'players_count': new_players_count,
+            'players_limit': new_players_count,  # По умолчанию лимит равен планируемому количеству игроков
             'status': 'planned',
             'current_game': 0,
             'total_games': max(1, new_players_count // 4),
             'start_time': None,
             'pause_time': None,
-            'elapsed_pause_time': 0
+            'elapsed_pause_time': 0,
+            'participants': []  # Пустой список участников
         }
         
         # Добавляем в список
@@ -725,6 +812,11 @@ def start_tournament_timer(tournament_id):
         # Сбрасываем другие таймеры
         st.session_state.tournaments_list[tournament_idx]['pause_time'] = None
         st.session_state.tournaments_list[tournament_idx]['elapsed_pause_time'] = 0
+        
+        # Если в турнире еще нет участников, инициализируем пустой список
+        if 'participants' not in st.session_state.tournaments_list[tournament_idx]:
+            st.session_state.tournaments_list[tournament_idx]['participants'] = []
+            
         # Сохраняем активный турнир в сессию
         st.session_state.active_tournament_id = tournament_id
         

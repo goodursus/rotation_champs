@@ -482,7 +482,10 @@ def display_tournament_selector():
             with col2:
                 st.markdown(f"**Duration:** {tournament['duration_minutes']} minutes")
                 st.markdown(f"**Game Duration:** {tournament['game_duration_minutes']} minutes")
-                st.markdown(f"**Players Limit:** {tournament['players_count']} players")
+                # Show players limit if applicable
+                players_limit = tournament.get('players_limit', tournament['players_count'])
+                limit_text = f"{players_limit} players" if players_limit > 0 else "No limit"
+                st.markdown(f"**Players Limit:** {limit_text}")
             
             # Show start tournament button if not active
             if tournament['status'] == 'planned':
@@ -504,13 +507,24 @@ def display_tournament_selector():
                         key="selected_tournament_players"
                     )
                     
-                    # Show selected players count
-                    st.write(f"Selected: {len(selected_players)}/{tournament['players_count']} players")
+                    # Get tournament player limit if defined
+                    players_limit = tournament.get('players_limit', tournament['players_count'])
+                    
+                    # Check if we have a players limit on this tournament
+                    limit_text = ""
+                    if players_limit > 0:
+                        limit_text = f"Selected: {len(selected_players)} / {players_limit} players"
+                        if len(selected_players) > players_limit:
+                            limit_text += " (exceeds limit)"
+                    else:
+                        limit_text = f"Selected: {len(selected_players)} players (no limit)"
+                        
+                    st.write(limit_text)
                     
                     # Button to start tournament
                     if st.button("Start Tournament", key="start_tournament_btn"):
-                        if len(selected_players) > tournament['players_count']:
-                            st.error(f"Too many players selected. Maximum is {tournament['players_count']}.")
+                        if players_limit > 0 and len(selected_players) > players_limit:
+                            st.error(f"Too many players selected. Maximum is {players_limit}.")
                         elif len(selected_players) < 4:
                             st.error("At least 4 players are required to start a tournament.")
                         else:

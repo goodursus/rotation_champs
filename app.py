@@ -55,10 +55,31 @@ if 'tournaments_list' not in st.session_state:
     try:
         import os
         import json
+        from datetime import datetime
+        
+        # Function to parse ISO format datetime strings
+        def parse_datetime(json_dict):
+            for key, value in json_dict.items():
+                if isinstance(value, str) and 'T' in value and value.count('-') >= 2:
+                    try:
+                        json_dict[key] = datetime.fromisoformat(value)
+                    except ValueError:
+                        pass
+                elif isinstance(value, dict):
+                    parse_datetime(value)
+                elif isinstance(value, list):
+                    for item in value:
+                        if isinstance(item, dict):
+                            parse_datetime(item)
+            return json_dict
+        
         tournaments_file = './.tournaments_data.json'
         if os.path.exists(tournaments_file):
             with open(tournaments_file, 'r') as f:
                 tournaments_data = json.load(f)
+                # Process datetime strings
+                for tournament in tournaments_data:
+                    parse_datetime(tournament)
                 st.session_state.tournaments_list = tournaments_data
     except Exception as e:
         print(f"Error loading tournaments: {e}")
@@ -342,9 +363,16 @@ if st.session_state.get('show_results_notification', False):
 try:
     import os
     import json
+    from datetime import datetime
+    
+    def datetime_serializer(obj):
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        raise TypeError(f"Type {type(obj)} not serializable")
+    
     tournaments_file = './.tournaments_data.json'
     with open(tournaments_file, 'w') as f:
-        json.dump(st.session_state.tournaments_list, f)
+        json.dump(st.session_state.tournaments_list, f, default=datetime_serializer)
 except Exception as e:
     print(f"Error saving tournaments: {e}")
 
