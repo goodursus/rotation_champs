@@ -736,7 +736,14 @@ def display_tournaments_list():
                     
                     # Обновляем количество игроков и пересчитываем лимит, если он не был изменен вручную
                     old_players_count = st.session_state.tournaments_list[tournament_idx]['players_count']
-                    old_players_limit = st.session_state.tournaments_list[tournament_idx]['players_limit']
+                    
+                    # Проверяем, существует ли ключ players_limit
+                    if 'players_limit' not in st.session_state.tournaments_list[tournament_idx]:
+                        # Если ключа нет, создаем его с тем же значением, что и players_count
+                        st.session_state.tournaments_list[tournament_idx]['players_limit'] = old_players_count
+                        old_players_limit = old_players_count
+                    else:
+                        old_players_limit = st.session_state.tournaments_list[tournament_idx]['players_limit']
                     
                     # Проверяем, был ли лимит игроков равен количеству (т.е. не изменялся вручную)
                     if old_players_count == old_players_limit:
