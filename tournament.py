@@ -959,10 +959,10 @@ def display_tournament_history():
 
 def display_tournament():
     """
-    Основная функция для отображения интерфейса турнира
+    Main function for displaying tournament interface
     """
-    # Добавляем вкладки для разных разделов
-    tournament_tabs = st.tabs(["Текущий турнир", "Список турниров", "История турниров"])
+    # Add tabs for different sections
+    tournament_tabs = st.tabs(["Tournament List", "Tournament History"])
     
     with tournament_tabs[0]:
         # Отображаем текущий турнир
@@ -1047,10 +1047,10 @@ def display_tournament():
             # Отображаем турнирную сетку
             display_tournament_bracket()
     
-    with tournament_tabs[1]:
-        # Отображаем список всех турниров
+    with tournament_tabs[0]:
+        # Display list of all tournaments
         display_tournaments_list()
         
-    with tournament_tabs[2]:
-        # Отображаем историю турниров
+    with tournament_tabs[1]:
+        # Display tournament history
         display_tournament_history()

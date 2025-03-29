@@ -204,7 +204,15 @@ with tab1:
         
         with col_btn1:
             if not st.session_state.game_active:
-                if st.button("Start Game", use_container_width=True, disabled=not tournament_active):
+                # Get tournament time status if tournament is active
+                tournament_time_expired = False
+                if tournament_active:
+                    _, _, remaining_minutes, remaining_seconds = tr.calculate_tournament_time(active_tournament_id)
+                    tournament_time_expired = remaining_minutes == 0 and remaining_seconds == 0
+                
+                # Disable button if tournament inactive or time expired
+                button_disabled = not tournament_active or tournament_time_expired
+                if st.button("Start Game", use_container_width=True, disabled=button_disabled):
                     tm.start_game()
                     st.rerun()
             else:
@@ -224,7 +232,7 @@ with tab1:
         
         with col_btn3:
             if st.button("Distribute Players", use_container_width=True):
-                st.session_state.courts = ca.distribute_players(st.session_state.players_df)
+                st.session_state.courts = ca.distribute_players()
                 st.rerun()
                 
         with col_btn4:
@@ -270,6 +278,15 @@ if st.session_state.get('timer_needs_reset', False):
     tm.reset_game()
     # Reload page
     st.rerun()
+
+# Disable Start Game button if tournament time has elapsed
+active_tournament_id = st.session_state.get('active_tournament_id')
+if active_tournament_id is not None:
+    # Calculate tournament remaining time
+    _, _, remaining_minutes, remaining_seconds = tr.calculate_tournament_time(active_tournament_id)
+    # Disable Start Game button if time is up
+    if remaining_minutes == 0 and remaining_seconds == 0:
+        st.warning("Tournament time is up. Unable to start new games.")
 
 # Show notification about generated results if it exists
 if st.session_state.get('show_results_notification', False):

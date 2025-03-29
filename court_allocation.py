@@ -7,16 +7,40 @@ import player_management as pm
 import player_matching as match
 import tournament as tr
 
-def distribute_players(players_df):
+def distribute_players(players_df=None):
     """
-    Distribute players across courts based on selected strategy
+    Distribute players across courts based on selected strategy and active tournament
     
     Parameters:
-    - players_df: DataFrame with player information
+    - players_df: DataFrame with player information, if None, uses tournament participants
     
     Returns:
     - List of courts with player allocations
     """
+    # Check if there's an active tournament and use those players
+    active_tournament_id = st.session_state.get('active_tournament_id')
+    if active_tournament_id is not None:
+        # Find the tournament in the list
+        tournament = next((t for t in st.session_state.tournaments_list if t['id'] == active_tournament_id), None)
+        
+        if tournament and 'participants' in tournament and tournament['participants']:
+            # Filter the players dataframe to only include participants from the tournament
+            tournament_players_ids = tournament['participants']
+            tournament_players_df = st.session_state.players_df[st.session_state.players_df['id'].isin(tournament_players_ids)]
+            
+            if tournament_players_df.empty:
+                st.error("No players available in the selected tournament.")
+                return []
+                
+            # Use the tournament players dataframe for distribution
+            players_df = tournament_players_df
+        else:
+            st.error("No participants found in the active tournament.")
+            return []
+    elif players_df is None:
+        # If no tournament is active and no dataframe is provided, use all players
+        players_df = st.session_state.players_df
+    
     # Check which player matching strategy was selected by the user
     matchmaking_strategy = st.session_state.get('matchmaking_strategy', 'Random Distribution')
     
@@ -240,12 +264,12 @@ def display_courts(courts, players_df):
                                 if i < len(team_a_names):
                                     player_name = team_a_names[i]
                                     if show_ratings:
-                                        # Получаем рейтинг игрока
+                                        # Get player rating
                                         player_rating = players_df.loc[players_df['id'] == player_id, 'rating'].values[0]
                                         if team_a_style:
-                                            st.markdown(f'{team_a_div}- {player_name} <em>(рейтинг: {player_rating:.2f})</em></div>', unsafe_allow_html=True)
+                                            st.markdown(f'{team_a_div}- {player_name} <em>(rating: {player_rating:.2f})</em></div>', unsafe_allow_html=True)
                                         else:
-                                            st.write(f"- {player_name} *(рейтинг: {player_rating:.2f})*")
+                                            st.write(f"- {player_name} *(rating: {player_rating:.2f})*")
                                     else:
                                         if team_a_style:
                                             st.markdown(f'{team_a_div}- {player_name}</div>', unsafe_allow_html=True)
@@ -292,12 +316,12 @@ def display_courts(courts, players_df):
                                 if i < len(team_b_names):
                                     player_name = team_b_names[i]
                                     if show_ratings:
-                                        # Получаем рейтинг игрока
+                                        # Get player rating
                                         player_rating = players_df.loc[players_df['id'] == player_id, 'rating'].values[0]
                                         if team_b_style:
-                                            st.markdown(f'{team_b_div}- {player_name} <em>(рейтинг: {player_rating:.2f})</em></div>', unsafe_allow_html=True)
+                                            st.markdown(f'{team_b_div}- {player_name} <em>(rating: {player_rating:.2f})</em></div>', unsafe_allow_html=True)
                                         else:
-                                            st.write(f"- {player_name} *(рейтинг: {player_rating:.2f})*")
+                                            st.write(f"- {player_name} *(rating: {player_rating:.2f})*")
                                     else:
                                         if team_b_style:
                                             st.markdown(f'{team_b_div}- {player_name}</div>', unsafe_allow_html=True)
@@ -323,13 +347,13 @@ def display_courts(courts, players_df):
                                 
                             # Если есть уведомление о сгенерированных результатах
                             if st.session_state.get('show_results_notification', False) and auto_score_a is not None and auto_score_b is not None:
-                                st.success(f"Автоматически сгенерирован результат: {auto_score_a} - {auto_score_b}")
+                                st.success(f"Automatically generated result: {auto_score_a} - {auto_score_b}")
                             
                             # Submit button for this court
                             if st.button("Save Result", key=f"save_result_{court_idx}"):
                                 # Update player statistics
                                 import player_management as pm
-                                # Используем значения из Streamlit states для надежности
+                                # Use values from Streamlit states for reliability
                                 team_a_score = st.session_state.get(f"direct_team_a_score_{court_idx}", 0)
                                 team_b_score = st.session_state.get(f"direct_team_b_score_{court_idx}", 0)
                                 pm.update_player_stats(court_idx, team_a_score, team_b_score)
