@@ -82,7 +82,7 @@ def generate_custom_layout():
     updated_df = grid_response['data']
     
     # Кнопка для применения распределения
-    if st.button("Применить распределение"):
+    if st.button("Применить распределение", key="apply_court_distribution"):
         # Проверяем корректность распределения
         validation_result, message = validate_court_assignment(updated_df)
         
@@ -626,7 +626,7 @@ def display_court_designer():
         col1, col2 = st.columns(2)
         
         with col1:
-            if st.button("Сгенерировать случайные результаты", use_container_width=True):
+            if st.button("Сгенерировать случайные результаты", key="btn_generate_random_results", use_container_width=True):
                 auto_generate_results(
                     consider_ratings=st.session_state.consider_ratings_for_results,
                     display_results=True
@@ -641,17 +641,17 @@ def display_court_designer():
                 st.info(f"Статус таймера: {status}")
                 
                 if game_paused:
-                    if st.button("Возобновить таймер", use_container_width=True):
+                    if st.button("Возобновить таймер", key="btn_resume_timer_designer", use_container_width=True):
                         import timer as tm
                         tm.resume_game()
                         st.rerun()
                 else:
-                    if st.button("Приостановить таймер", use_container_width=True):
+                    if st.button("Приостановить таймер", key="btn_pause_timer_designer", use_container_width=True):
                         import timer as tm
                         tm.pause_game()
                         st.rerun()
             else:
-                if st.button("Запустить таймер", use_container_width=True):
+                if st.button("Запустить таймер", key="btn_start_timer_designer", use_container_width=True):
                     import timer as tm
                     tm.start_game()
                     st.rerun()

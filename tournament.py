@@ -182,10 +182,10 @@ def display_tournament_setup():
         # Продолжительность турнира
         tournament_duration = st.number_input(
             "Продолжительность турнира (мин)", 
-            min_value=30, 
+            min_value=5,  # Снижено с 30 до 5 минут для тестирования
             max_value=480, 
             value=tournament_data.get('duration_minutes', 120),
-            step=10
+            step=5
         )
         tournament_data['duration_minutes'] = tournament_duration
     
@@ -193,10 +193,10 @@ def display_tournament_setup():
         # Продолжительность одной игры
         game_duration = st.number_input(
             "Продолжительность игры (мин)", 
-            min_value=5, 
+            min_value=1,  # Снижено с 5 до 1 минуты для тестирования
             max_value=60, 
             value=tournament_data.get('game_duration_minutes', 15),
-            step=5
+            step=1
         )
         tournament_data['game_duration_minutes'] = game_duration
     
@@ -757,8 +757,8 @@ def display_tournaments_list():
         new_date = st.date_input("Дата проведения", key="new_tournament_date")
     
     with col2:
-        new_duration = st.number_input("Общая продолжительность (мин)", min_value=30, max_value=360, value=120, key="new_tournament_duration")
-        new_game_duration = st.number_input("Время одной игры (мин)", min_value=5, max_value=60, value=15, key="new_tournament_game_duration")
+        new_duration = st.number_input("Общая продолжительность (мин)", min_value=5, max_value=360, value=120, key="new_tournament_duration")
+        new_game_duration = st.number_input("Время одной игры (мин)", min_value=1, max_value=60, value=15, key="new_tournament_game_duration")
     
     new_players_count = st.number_input("Количество участников", min_value=4, max_value=64, value=22, key="new_tournament_players_count")
     

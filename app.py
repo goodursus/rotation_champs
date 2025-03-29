@@ -262,9 +262,11 @@ with tab1:
                     _, _, remaining_minutes, remaining_seconds = tr.calculate_tournament_time(active_tournament_id)
                     tournament_time_expired = remaining_minutes == 0 and remaining_seconds == 0
                 
-                # Disable button if tournament inactive or time expired
-                button_disabled = not tournament_active or tournament_time_expired
+                # Disable button if tournament inactive or time expired, или после завершения игры до нажатия Rotate Players
+                button_disabled = not tournament_active or tournament_time_expired or st.session_state.get('game_ended', False)
                 if st.button("Start Game", key="btn_start_game", use_container_width=True, disabled=button_disabled):
+                    # Сбрасываем флаг завершения игры при старте новой
+                    st.session_state.game_ended = False
                     tm.start_game()
                     st.rerun()
             else:
@@ -293,21 +295,40 @@ with tab1:
                 if not tournament or 'participants' not in tournament or not tournament['participants']:
                     button_disabled = True
             
-            if st.button("Distribute Players", key="distribute_btn_bottom", use_container_width=True, disabled=button_disabled):
+            # Проверяем, активна ли игра (не должны распределять игроков во время игры)
+            is_game_active = st.session_state.get('game_active', False)
+            if st.button("Distribute Players", key="distribute_btn_bottom", use_container_width=True, 
+                        disabled=button_disabled or is_game_active):
                 st.session_state.courts = ca.distribute_players()
+                # Сбрасываем флаг завершения игры при новом распределении
+                st.session_state.game_ended = False
                 st.rerun()
                 
         with col_btn4:
             # Only enable rotate if courts exist
             has_courts = 'courts' in st.session_state and st.session_state.courts
-            if st.button("Rotate Players", key="btn_rotate_players", use_container_width=True, disabled=not has_courts):
+            # Добавляем дополнительную проверку на активную игру
+            is_game_active = st.session_state.get('game_active', False)
+            if st.button("Rotate Players", key="btn_rotate_players", use_container_width=True, 
+                        disabled=not has_courts or is_game_active):
+                # Сбрасываем флаг завершения игры, чтобы можно было запустить следующую
+                st.session_state.game_ended = False
                 ca.rotate_players()
                 st.rerun()
 
     with col2:
         # Player management section
         st.header("Players")
-        pm.manage_players()
+        
+        # Only show player management section if there's an active tournament or user requested it
+        active_tournament_id = st.session_state.get('active_tournament_id')
+        if active_tournament_id is not None or st.session_state.get('show_player_management', False):
+            pm.manage_players()
+        else:
+            # Show button to display player management
+            if st.button("Show Player Management", key="btn_show_players"):
+                st.session_state.show_player_management = True
+                st.rerun()
 
 with tab2:
     # Display player statistics

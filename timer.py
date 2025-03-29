@@ -18,6 +18,19 @@ def start_game():
     else:
         st.session_state.update_counter = 0
     
+    # Увеличиваем счетчик игр для активного турнира
+    active_tournament_id = st.session_state.get('active_tournament_id')
+    if active_tournament_id is not None:
+        # Находим индекс турнира в списке
+        tournament_idx = next(
+            (i for i, t in enumerate(st.session_state.tournaments_list) if t['id'] == active_tournament_id), 
+            None
+        )
+        if tournament_idx is not None:
+            # Увеличиваем счетчик текущей игры
+            current_game = st.session_state.tournaments_list[tournament_idx].get('current_game', 0)
+            st.session_state.tournaments_list[tournament_idx]['current_game'] = current_game + 1
+    
     # Выводим логи для диагностики
     print(f"Игра запущена: {datetime.now()}")
 
@@ -73,6 +86,9 @@ def reset_game():
     
     # Сбрасываем счетчик обновлений
     st.session_state.update_counter = 0
+    
+    # Устанавливаем флаг завершения игры - требуется ротация перед следующей игрой
+    st.session_state.game_ended = True
     
     # Выводим логи для диагностики
     print(f"Таймер сброшен: {datetime.now()}")

@@ -154,6 +154,9 @@ def display_leaderboard():
         axis=1
     )
     
+    # Расчет процента в числовом формате для сортировки
+    df['win_rate_pct'] = df['win_rate'] * 100
+    
     # Сортируем по рейтингу (убывание)
     df = df.sort_values(by='rating', ascending=False).reset_index(drop=True)
     
@@ -208,8 +211,36 @@ def display_leaderboard():
     html_table += f'<div class="leaderboard-timestamp">Обновлено: {current_time}</div>'
     html_table += '</div>'
     
-    # Отображаем таблицу
-    st.markdown(html_table, unsafe_allow_html=True)
+    # Отображаем таблицу лидеров в двух вариантах:
+    # 1. Стандартный вид с помощью Streamlit компонентов
+    with st.expander("Стандартный вид таблицы лидеров", expanded=True):
+        # Создаем новый dataframe для отображения только нужных колонок
+        display_df = df[['position', 'name', 'wins', 'losses', 'win_rate_pct', 'rating', 'position_change']].copy()
+        
+        # Форматируем изменение позиции для читаемости
+        display_df['position_change'] = display_df['position_change'].apply(
+            lambda x: f"▲{x}" if x > 0 else (f"▼{abs(x)}" if x < 0 else "-")
+        )
+        
+        # Отображаем таблицу
+        st.dataframe(
+            display_df,
+            column_config={
+                'position': st.column_config.NumberColumn("Место", format="%d"),
+                'name': "Имя игрока",
+                'wins': "Победы",
+                'losses': "Поражения",
+                'win_rate_pct': st.column_config.NumberColumn("% побед", format="%.1f%%"),
+                'rating': st.column_config.NumberColumn("Рейтинг", format="%.2f"),
+                'position_change': "Изменение"
+            },
+            hide_index=True,
+            use_container_width=True
+        )
+    
+    # 2. Анимированный HTML вид (опционально)
+    with st.expander("Анимированный вид таблицы лидеров", expanded=False):
+        st.markdown(html_table, unsafe_allow_html=True)
     
     # Добавляем опцию для автообновления таблицы лидеров
     st.checkbox(
