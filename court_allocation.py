@@ -2,8 +2,10 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import random
+from datetime import datetime
 import player_management as pm
 import player_matching as match
+import tournament as tr
 
 def distribute_players(players_df):
     """
@@ -15,14 +17,14 @@ def distribute_players(players_df):
     Returns:
     - List of courts with player allocations
     """
-    # Проверяем, какую стратегию подбора игроков выбрал пользователь
-    matchmaking_strategy = st.session_state.get('matchmaking_strategy', 'Случайное распределение')
+    # Check which player matching strategy was selected by the user
+    matchmaking_strategy = st.session_state.get('matchmaking_strategy', 'Random Distribution')
     
-    if matchmaking_strategy == 'Сбалансированные команды по навыкам':
-        # Используем продвинутый алгоритм подбора на основе навыков
+    if matchmaking_strategy == 'Skill-Based Balanced Teams':
+        # Use advanced skill-based matching algorithm
         return match.get_skill_based_courts(players_df)
     else:
-        # Используем случайное распределение игроков (оригинальный метод)
+        # Use random player distribution (original method)
         return random_distribute_players(players_df)
 
 def random_distribute_players(players_df):
@@ -190,30 +192,30 @@ def display_courts(courts, players_df):
                         else:
                             st.subheader(f"Court {court['court_number']}")
                             
-                            # Если выбран алгоритм сбалансированных команд, показываем информацию о балансе
-                            if st.session_state.get('matchmaking_strategy', '') == 'Сбалансированные команды по навыкам':
-                                # Рассчитываем баланс команд
+                            # If skill-based team balancing is selected, show balance information
+                            if st.session_state.get('matchmaking_strategy', '') == 'Skill-Based Balanced Teams':
+                                # Calculate team balance
                                 team_a_rating = sum(players_df.loc[players_df['id'] == player_id, 'rating'].values[0] 
                                                   for player_id in court['team_a'])
                                 team_b_rating = sum(players_df.loc[players_df['id'] == player_id, 'rating'].values[0] 
                                                   for player_id in court['team_b'])
                                 
-                                # Разница в рейтинге
+                                # Rating difference
                                 rating_diff = abs(team_a_rating - team_b_rating)
                                 
-                                # Определяем цвет на основе разницы
+                                # Determine color based on difference
                                 if rating_diff < 0.5:
                                     balance_color = "green"
-                                    balance_text = "Отличный баланс"
+                                    balance_text = "Excellent Balance"
                                 elif rating_diff < 1.5:
                                     balance_color = "orange"
-                                    balance_text = "Хороший баланс"
+                                    balance_text = "Good Balance"
                                 else:
                                     balance_color = "red"
-                                    balance_text = "Дисбаланс"
+                                    balance_text = "Imbalanced"
                                 
-                                # Отображаем информацию о балансе
-                                st.markdown(f'<span style="color:{balance_color};font-size:small;">{balance_text} (разница: {rating_diff:.2f})</span>', unsafe_allow_html=True)
+                                # Display balance information
+                                st.markdown(f'<span style="color:{balance_color};font-size:small;">{balance_text} (difference: {rating_diff:.2f})</span>', unsafe_allow_html=True)
                         
                         # Display teams
                         if not court['is_rest']:
@@ -229,8 +231,8 @@ def display_courts(courts, players_df):
                             else:
                                 st.markdown("**Team A**")
                             
-                            # Проверяем, нужно ли отображать рейтинги
-                            show_ratings = st.session_state.get('matchmaking_strategy', '') == 'Сбалансированные команды по навыкам'
+                            # Check if we need to display ratings
+                            show_ratings = st.session_state.get('matchmaking_strategy', '') == 'Skill-Based Balanced Teams'
                             
                             # Игроки команды A с подсветкой если есть результат
                             team_a_div = '<div style="{}">'.format(team_a_style) if team_a_style else '<div>'
@@ -392,6 +394,201 @@ def record_game_results():
             
             st.success("Game results recorded successfully!")
 
+def display_tournament_selector():
+    """
+    Display tournament selector and management on the Courts & Timer tab
+    """
+    st.subheader("Tournament Selection")
+    
+    # Initialize tournament list if not exist
+    if 'tournaments_list' not in st.session_state:
+        st.session_state.tournaments_list = []
+    
+    if not st.session_state.tournaments_list:
+        st.warning("No tournaments available. Please create a tournament in the Tournament tab first.")
+        return
+    
+    # Get active tournament if exists
+    active_tournament_id = st.session_state.get('active_tournament_id')
+    
+    # Create list of available tournaments
+    tournaments_for_selection = []
+    
+    # First add active tournament if exists
+    if active_tournament_id is not None:
+        active_tournament = next((t for t in st.session_state.tournaments_list if t['id'] == active_tournament_id), None)
+        if active_tournament:
+            tournaments_for_selection.append(f"{active_tournament['id']} - {active_tournament['name']} (Active)")
+    
+    # Then add planned tournaments
+    for tournament in st.session_state.tournaments_list:
+        if tournament['status'] == 'planned':
+            tournaments_for_selection.append(f"{tournament['id']} - {tournament['name']}")
+    
+    # Select tournament from list
+    selected_tournament_str = st.selectbox(
+        "Select Tournament", 
+        tournaments_for_selection,
+        index=0 if active_tournament_id is not None else None,
+        key="tournament_selector"
+    )
+    
+    if selected_tournament_str:
+        # Extract ID from selected string
+        tournament_id = int(selected_tournament_str.split(' - ')[0])
+        tournament = next((t for t in st.session_state.tournaments_list if t['id'] == tournament_id), None)
+        
+        if tournament:
+            # Display tournament information
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown(f"**Tournament:** {tournament['name']}")
+                st.markdown(f"**Date:** {tournament['date']}")
+                
+                # Display tournament status
+                status_map = {
+                    'planned': '🔄 Planned',
+                    'active': '▶️ Active',
+                    'completed': '✅ Completed'
+                }
+                status_display = status_map.get(tournament['status'], tournament['status'])
+                st.markdown(f"**Status:** {status_display}")
+            
+            with col2:
+                st.markdown(f"**Duration:** {tournament['duration_minutes']} minutes")
+                st.markdown(f"**Game Duration:** {tournament['game_duration_minutes']} minutes")
+                st.markdown(f"**Players Limit:** {tournament['players_count']} players")
+            
+            # Show start tournament button if not active
+            if tournament['status'] == 'planned':
+                # Check if there's already an active tournament
+                if active_tournament_id is not None:
+                    st.warning("Another tournament is active. Please complete it before starting a new one.")
+                else:
+                    # Select tournament participants from all players
+                    st.subheader("Select Tournament Participants")
+                    
+                    # Get list of all players
+                    players_df = st.session_state.players_df
+                    
+                    # Create multiselect for player selection
+                    selected_players = st.multiselect(
+                        "Select Players",
+                        options=players_df['id'].tolist(),
+                        format_func=lambda x: players_df.loc[players_df['id'] == x, 'name'].values[0],
+                        key="selected_tournament_players"
+                    )
+                    
+                    # Show selected players count
+                    st.write(f"Selected: {len(selected_players)}/{tournament['players_count']} players")
+                    
+                    # Button to start tournament
+                    if st.button("Start Tournament", key="start_tournament_btn"):
+                        if len(selected_players) > tournament['players_count']:
+                            st.error(f"Too many players selected. Maximum is {tournament['players_count']}.")
+                        elif len(selected_players) < 4:
+                            st.error("At least 4 players are required to start a tournament.")
+                        else:
+                            # Set game duration
+                            st.session_state.game_duration = tournament['game_duration_minutes']
+                            
+                            # Start tournament timer
+                            tr.start_tournament_timer(tournament_id)
+                            
+                            # Save selected players for this tournament
+                            tournament_idx = next((i for i, t in enumerate(st.session_state.tournaments_list) 
+                                                if t['id'] == tournament_id), None)
+                            if tournament_idx is not None:
+                                if 'participants' not in st.session_state.tournaments_list[tournament_idx]:
+                                    st.session_state.tournaments_list[tournament_idx]['participants'] = []
+                                st.session_state.tournaments_list[tournament_idx]['participants'] = selected_players
+                            
+                            # Reload page
+                            st.rerun()
+            elif tournament['status'] == 'active':
+                # Display active tournament information
+                st.subheader("Tournament Progress")
+                
+                # Display timer
+                elapsed_minutes, elapsed_seconds, remaining_minutes, remaining_seconds = tr.calculate_tournament_time(tournament_id)
+                
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    st.metric("Elapsed Time", f"{elapsed_minutes:02d}:{elapsed_seconds:02d}")
+                
+                with col2:
+                    st.metric("Remaining Time", f"{remaining_minutes:02d}:{remaining_seconds:02d}")
+                
+                with col3:
+                    # Display current game
+                    current_game = tournament.get('current_game', 0)
+                    total_games = tournament.get('total_games', 0)
+                    st.metric("Game", f"{current_game + 1}/{total_games}")
+                
+                # Tournament control buttons
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    is_paused = tournament.get('pause_time') is not None
+                    if is_paused:
+                        if st.button("Resume Tournament", key="resume_tournament_btn"):
+                            tr.resume_tournament_timer(tournament_id)
+                            st.rerun()
+                    else:
+                        if st.button("Pause Tournament", key="pause_tournament_btn"):
+                            tr.pause_tournament_timer(tournament_id)
+                            st.rerun()
+                
+                with col2:
+                    if st.button("Complete Tournament", key="complete_tournament_btn"):
+                        # Find tournament index
+                        tournament_idx = next((i for i, t in enumerate(st.session_state.tournaments_list) 
+                                            if t['id'] == tournament_id), None)
+                        if tournament_idx is not None:
+                            # Change status to completed
+                            st.session_state.tournaments_list[tournament_idx]['status'] = 'completed'
+                            # Reset active tournament
+                            st.session_state.active_tournament_id = None
+                            st.rerun()
+                
+                # Display participants list
+                if 'participants' in tournament:
+                    st.subheader("Tournament Participants")
+                    
+                    participants = tournament['participants']
+                    if participants:
+                        # Create DataFrame for display
+                        participants_data = []
+                        for player_id in participants:
+                            player_row = st.session_state.players_df.loc[st.session_state.players_df['id'] == player_id].iloc[0]
+                            participants_data.append({
+                                'id': player_id,
+                                'name': player_row['name'],
+                                'rating': player_row['rating']
+                            })
+                        
+                        participants_df = pd.DataFrame(participants_data)
+                        
+                        # Sort by rating
+                        participants_df = participants_df.sort_values(by='rating', ascending=False)
+                        
+                        # Display table
+                        st.dataframe(
+                            participants_df,
+                            column_config={
+                                'id': 'ID',
+                                'name': 'Player Name',
+                                'rating': st.column_config.NumberColumn(
+                                    'Rating',
+                                    format="%.2f"
+                                )
+                            },
+                            use_container_width=True,
+                            hide_index=True
+                        )
+
 def rotate_players():
     """
     Rotate players between courts after a game
@@ -401,17 +598,17 @@ def rotate_players():
     if not st.session_state.courts:
         return
     
-    # Проверяем, какую стратегию подбора игроков выбрал пользователь
-    matchmaking_strategy = st.session_state.get('matchmaking_strategy', 'Случайное распределение')
+    # Check which player matching strategy was selected by the user
+    matchmaking_strategy = st.session_state.get('matchmaking_strategy', 'Random Distribution')
     
-    if matchmaking_strategy == 'Сбалансированные команды по навыкам':
-        # Используем оптимизированную ротацию на основе навыков
+    if matchmaking_strategy == 'Skill-Based Balanced Teams':
+        # Use skill-based optimized rotation
         st.session_state.courts = match.get_optimized_rotation(
             st.session_state.courts, 
             st.session_state.players_df
         )
     else:
-        # Используем случайную ротацию (оригинальный метод)
+        # Use random rotation (original method)
         random_rotate_players()
 
 def random_rotate_players():

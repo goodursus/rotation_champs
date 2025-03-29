@@ -8,11 +8,13 @@ def manage_players():
     """
     # Display the players table with editable cells
     edited_df = st.data_editor(
-        st.session_state.players_df[['name', 'wins', 'losses', 'points_difference', 'rating']],
+        st.session_state.players_df[['name', 'email', 'phone', 'wins', 'losses', 'points_difference', 'rating']],
         num_rows="dynamic",
         use_container_width=True,
         column_config={
             "name": "Player Name",
+            "email": "Email",
+            "phone": "Phone",
             "wins": "Wins",
             "losses": "Losses",
             "points_difference": "Points Difference",
@@ -37,6 +39,8 @@ def manage_players():
             new_players = pd.DataFrame({
                 'id': new_ids,
                 'name': edited_df.iloc[-num_new_players:]['name'].values,
+                'email': edited_df.iloc[-num_new_players:]['email'].values if 'email' in edited_df.columns else [""] * num_new_players,
+                'phone': edited_df.iloc[-num_new_players:]['phone'].values if 'phone' in edited_df.columns else [""] * num_new_players,
                 'wins': [0] * num_new_players,
                 'losses': [0] * num_new_players,
                 'points_difference': [0] * num_new_players,
@@ -72,8 +76,10 @@ def manage_players():
             # Remove those players
             st.session_state.players_df = st.session_state.players_df[~st.session_state.players_df['name'].isin(removed_names)]
             
-    # Update player names
+    # Update player information
     st.session_state.players_df['name'] = edited_df['name'].values
+    st.session_state.players_df['email'] = edited_df['email'].values
+    st.session_state.players_df['phone'] = edited_df['phone'].values
     
     # Recalculate ratings after changes
     calculate_ratings()
@@ -133,24 +139,47 @@ def display_player_stats():
     # Add rank column
     sorted_df.insert(0, 'rank', range(1, len(sorted_df) + 1))
     
-    # Display the sorted stats
-    st.dataframe(
-        sorted_df[['rank', 'name', 'wins', 'losses', 'points_difference', 'rating']],
-        use_container_width=True,
-        column_config={
-            "rank": "Rank",
-            "name": "Player Name",
-            "wins": "Wins",
-            "losses": "Losses",
-            "points_difference": "Points Difference",
-            "rating": st.column_config.NumberColumn(
-                "Rating",
-                help="Player rating based on performance",
-                format="%.2f",
-            ),
-        },
-        hide_index=True,
-    )
+    # Create tabs for different views
+    stats_tab, contact_tab = st.tabs(["Performance Statistics", "Player Contact Information"])
+    
+    with stats_tab:
+        # Display the sorted performance stats
+        st.dataframe(
+            sorted_df[['rank', 'name', 'wins', 'losses', 'points_difference', 'rating']],
+            use_container_width=True,
+            column_config={
+                "rank": "Rank",
+                "name": "Player Name",
+                "wins": "Wins",
+                "losses": "Losses",
+                "points_difference": "Points Difference",
+                "rating": st.column_config.NumberColumn(
+                    "Rating",
+                    help="Player rating based on performance",
+                    format="%.2f",
+                ),
+            },
+            hide_index=True,
+        )
+    
+    with contact_tab:
+        # Display player contact information
+        st.dataframe(
+            sorted_df[['rank', 'name', 'email', 'phone', 'rating']],
+            use_container_width=True,
+            column_config={
+                "rank": "Rank",
+                "name": "Player Name",
+                "email": "Email",
+                "phone": "Phone",
+                "rating": st.column_config.NumberColumn(
+                    "Rating",
+                    help="Player rating based on performance",
+                    format="%.2f",
+                ),
+            },
+            hide_index=True,
+        )
 
 def update_player_stats(court_idx, team_a_score, team_b_score):
     """

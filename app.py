@@ -18,21 +18,21 @@ st.set_page_config(
     layout="wide"
 )
 
-# Используем новую функцию автообновления Streamlit
+# Use Streamlit's auto-refresh feature
 def enable_auto_refresh():
     """
-    Включает автоматическое обновление страницы с таймером
+    Enables automatic page refresh with timer
     """
-    # Если игра активна и не на паузе, включаем автообновление каждую секунду
+    # If game is active and not paused, enable auto-refresh every second
     if st.session_state.get('game_active', False) and not st.session_state.get('game_paused', True):
-        time.sleep(0.1)  # Небольшая задержка для снижения нагрузки
+        time.sleep(0.1)  # Small delay to reduce load
         st.rerun()
 
-# Инициализируем счетчик обновлений для отображения изменений в таймере
+# Initialize counter for displaying timer changes
 if 'update_counter' not in st.session_state:
     st.session_state.update_counter = 0
 else:
-    # Увеличиваем счетчик при каждом обновлении, если игра активна и не на паузе
+    # Increment counter on each update if game is active and not paused
     if st.session_state.get('game_active', False) and not st.session_state.get('game_paused', True):
         st.session_state.update_counter += 1
 
@@ -42,6 +42,8 @@ if 'players_df' not in st.session_state:
     st.session_state.players_df = pd.DataFrame({
         'id': list(range(1, 15)),
         'name': [f"Player {i}" for i in range(1, 15)],
+        'email': [""] * 14,  # New field for email
+        'phone': [""] * 14,  # New field for phone
         'wins': [0] * 14,
         'losses': [0] * 14,
         'points_difference': [0] * 14,
@@ -69,9 +71,9 @@ if 'pause_time' not in st.session_state:
 if 'elapsed_pause_time' not in st.session_state:
     st.session_state.elapsed_pause_time = 0
 
-# Инициализируем настройки для алгоритма подбора игроков
+# Initialize player matching algorithm settings
 if 'matchmaking_strategy' not in st.session_state:
-    st.session_state.matchmaking_strategy = 'Случайное распределение'
+    st.session_state.matchmaking_strategy = 'Random Distribution'
 
 # Main application layout
 st.title("Rotation Players")
@@ -84,32 +86,36 @@ with tab1:
     col1, col2 = st.columns([2, 1])
 
     with col1:
+        # Display tournament selector at the top
+        st.header("Tournament Selection")
+        ca.display_tournament_selector()
+        
         # Display courts with players
         st.header("Courts")
         
-        # Добавляем раздел настроек подбора игроков
-        with st.expander("Настройки подбора игроков"):
+        # Add player matching settings
+        with st.expander("Player Matching Settings"):
             st.session_state.matchmaking_strategy = st.radio(
-                "Выберите стратегию распределения игроков:",
-                ["Случайное распределение", "Сбалансированные команды по навыкам"]
+                "Select player distribution strategy:",
+                ["Random Distribution", "Skill-Based Balanced Teams"]
             )
             
-            if st.session_state.matchmaking_strategy == "Сбалансированные команды по навыкам":
+            if st.session_state.matchmaking_strategy == "Skill-Based Balanced Teams":
                 st.info("""
-                    **Описание алгоритма:** 
-                    Этот алгоритм распределяет игроков на основе их рейтинга для создания 
-                    максимально сбалансированных команд. Игроки с высоким рейтингом 
-                    распределяются между кортами методом "змейки", чтобы обеспечить их 
-                    равномерное распределение. Затем внутри каждого корта игроки делятся 
-                    на команды так, чтобы минимизировать разницу в суммарном рейтинге команд.
+                    **Algorithm Description:** 
+                    This algorithm distributes players based on their rating to create 
+                    maximally balanced teams. High-rated players are distributed across 
+                    courts using the "snake" method to ensure even distribution. Then 
+                    within each court, players are divided into teams to minimize the 
+                    difference in total team ratings.
                 """)
             else:
                 st.info("""
-                    **Описание алгоритма:** 
-                    Случайное распределение игроков по кортам без учета рейтинга.
+                    **Algorithm Description:** 
+                    Random distribution of players across courts without considering ratings.
                 """)
         
-        # Отображение кортов
+        # Display courts
         if st.session_state.courts:
             ca.display_courts(st.session_state.courts, st.session_state.players_df)
         else:
@@ -118,17 +124,17 @@ with tab1:
         # Game timer controls
         st.header("Game Timer")
         
-        # Добавляем статус таймера
+        # Add timer status
         timer_status = ""
         if st.session_state.game_active:
             if st.session_state.game_paused:
-                timer_status = "⏸️ Приостановлено"
+                timer_status = "⏸️ Paused"
             else:
-                timer_status = "▶️ Активно"
+                timer_status = "▶️ Active"
         else:
-            timer_status = "⏹️ Не запущено"
+            timer_status = "⏹️ Not Started"
             
-        st.write(f"**Статус таймера:** {timer_status}")
+        st.write(f"**Timer Status:** {timer_status}")
         
         col_timer1, col_timer2, col_timer3 = st.columns(3)
         
@@ -143,11 +149,11 @@ with tab1:
         with col_timer2:
             elapsed_time, elapsed_seconds, remaining_time, remaining_seconds = tm.calculate_game_time()
             
-            # Показатели секундомера
+            # Timer indicators
             update_count = st.session_state.get('update_counter', 0)
             reset_count = st.session_state.get('reset_counter', 0)
             
-            # Добавляем небольшую визуальную подсказку о состоянии таймера
+            # Add visual hint about timer state
             elapsed_label = "Elapsed Time"
             if st.session_state.game_active:
                 if not st.session_state.game_paused:
@@ -160,7 +166,7 @@ with tab1:
                 elapsed_label = "⏹ Elapsed Time"
                 delta_value = None
                 
-            # Отображаем метрику с дополнительной информацией
+            # Display metric with additional information
             st.metric(
                 elapsed_label, 
                 f"{elapsed_time}:{elapsed_seconds:02d}", 
@@ -170,7 +176,7 @@ with tab1:
             )
             
         with col_timer3:
-            # Показываем оставшееся время
+            # Show remaining time
             remaining_label = "Remaining Time"
             if st.session_state.game_active and not st.session_state.game_paused:
                 remaining_label = "⏱ Remaining Time"
@@ -188,13 +194,13 @@ with tab1:
         
         col_btn1, col_btn2, col_btn3, col_btn4 = st.columns(4)
         
-        # Проверяем, активен ли турнир
+        # Check if tournament is active
         active_tournament_id = st.session_state.get('active_tournament_id')
         tournament_active = active_tournament_id is not None
         
-        # Если турнир не активен, блокируем кнопки таймера с пояснением
+        # If tournament is not active, disable timer buttons with explanation
         if not tournament_active:
-            st.warning("Для активации таймера необходимо запустить турнир на вкладке 'Tournament'")
+            st.warning("To activate the timer, you need to start a tournament first")
         
         with col_btn1:
             if not st.session_state.game_active:
@@ -237,40 +243,40 @@ with tab2:
     pm.display_player_stats()
 
 with tab3:
-    # Отображаем турнирную сетку и функциональность турнира
+    # Display tournament bracket and functionality
     st.header("Tournament Mode")
     tr.display_tournament()
 
 with tab4:
-    # Отображаем динамическую таблицу лидеров
+    # Display dynamic leaderboard
     st.header("Leaderboard")
-    # Основная таблица лидеров
+    # Main leaderboard
     lb.display_leaderboard()
     
-    # Демо возможностей анимации
-    with st.expander("Демо анимации таблицы лидеров"):
+    # Animation demo
+    with st.expander("Leaderboard Animation Demo"):
         lb.display_leaderboard_animation_demo()
 
 with tab5:
-    # Отображаем дизайнер кортов
+    # Display court designer
     st.header("Court Designer")
     designer.display_court_designer()
 
-# Проверяем, нужно ли сбросить таймер (например, после автогенерации результатов по таймеру)
+# Check if timer needs to be reset (e.g., after auto-generating results)
 if st.session_state.get('timer_needs_reset', False):
-    # Сбрасываем флаг
+    # Reset flag
     st.session_state.timer_needs_reset = False
-    # Сбрасываем таймер
+    # Reset timer
     tm.reset_game()
-    # Делаем перезагрузку страницы
+    # Reload page
     st.rerun()
 
-# Показываем уведомление о сгенерированных результатах, если оно есть
+# Show notification about generated results if it exists
 if st.session_state.get('show_results_notification', False):
-    # Отображаем главное уведомление
-    st.success("Время вышло! Автоматически сгенерированы результаты игр. Просмотрите и сохраните их.")
-    # Сбрасываем уведомление при следующем обновлении страницы
+    # Display main notification
+    st.success("Time's up! Game results have been automatically generated. Review and save them.")
+    # Reset notification on next page refresh
     st.session_state.show_results_notification = False
 
-# Включаем автообновление страницы, если таймер активен
+# Enable auto-refresh if timer is active
 enable_auto_refresh()
