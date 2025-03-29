@@ -144,7 +144,7 @@ with tab1:
             ca.display_courts(st.session_state.courts, st.session_state.players_df)
         elif not has_tournament_players:
             st.warning("Please select a tournament and add participants first.")
-            st.button("Distribute Players", disabled=True, use_container_width=True)
+            st.button("Distribute Players", key="btn_distribute_disabled", disabled=True, use_container_width=True)
         else:
             col1, col2, col3 = st.columns([1, 2, 1])
             with col2:
@@ -243,21 +243,21 @@ with tab1:
                 
                 # Disable button if tournament inactive or time expired
                 button_disabled = not tournament_active or tournament_time_expired
-                if st.button("Start Game", use_container_width=True, disabled=button_disabled):
+                if st.button("Start Game", key="btn_start_game", use_container_width=True, disabled=button_disabled):
                     tm.start_game()
                     st.rerun()
             else:
                 if st.session_state.game_paused:
-                    if st.button("Resume Game", use_container_width=True, disabled=not tournament_active):
+                    if st.button("Resume Game", key="btn_resume_game", use_container_width=True, disabled=not tournament_active):
                         tm.resume_game()
                         st.rerun()
                 else:
-                    if st.button("Pause Game", use_container_width=True, disabled=not tournament_active):
+                    if st.button("Pause Game", key="btn_pause_game", use_container_width=True, disabled=not tournament_active):
                         tm.pause_game()
                         st.rerun()
         
         with col_btn2:
-            if st.button("Reset Timer", use_container_width=True, disabled=not tournament_active):
+            if st.button("Reset Timer", key="btn_reset_timer", use_container_width=True, disabled=not tournament_active):
                 tm.reset_game()
                 st.rerun()
         
@@ -272,14 +272,14 @@ with tab1:
                 if not tournament or 'participants' not in tournament or not tournament['participants']:
                     button_disabled = True
             
-            if st.button("Distribute Players", use_container_width=True, disabled=button_disabled):
+            if st.button("Distribute Players", key="distribute_btn_bottom", use_container_width=True, disabled=button_disabled):
                 st.session_state.courts = ca.distribute_players()
                 st.rerun()
                 
         with col_btn4:
             # Only enable rotate if courts exist
             has_courts = 'courts' in st.session_state and st.session_state.courts
-            if st.button("Rotate Players", use_container_width=True, disabled=not has_courts):
+            if st.button("Rotate Players", key="btn_rotate_players", use_container_width=True, disabled=not has_courts):
                 ca.rotate_players()
                 st.rerun()
 
