@@ -50,6 +50,20 @@ if 'players_df' not in st.session_state:
         'rating': [0] * 14
     })
 
+# Load tournaments from disk if available
+if 'tournaments_list' not in st.session_state:
+    try:
+        import os
+        import json
+        tournaments_file = './.tournaments_data.json'
+        if os.path.exists(tournaments_file):
+            with open(tournaments_file, 'r') as f:
+                tournaments_data = json.load(f)
+                st.session_state.tournaments_list = tournaments_data
+    except Exception as e:
+        print(f"Error loading tournaments: {e}")
+        st.session_state.tournaments_list = []
+
 if 'courts' not in st.session_state:
     st.session_state.courts = []
 
@@ -115,11 +129,28 @@ with tab1:
                     Random distribution of players across courts without considering ratings.
                 """)
         
-        # Display courts
+        # Check if tournament is active and has participants
+        active_tournament_id = st.session_state.get('active_tournament_id')
+        has_tournament_players = False
+        
+        if active_tournament_id is not None:
+            # Find the tournament in the list
+            tournament = next((t for t in st.session_state.tournaments_list if t['id'] == active_tournament_id), None)
+            if tournament and 'participants' in tournament and tournament['participants']:
+                has_tournament_players = True
+        
+        # Display courts if they exist
         if st.session_state.courts:
             ca.display_courts(st.session_state.courts, st.session_state.players_df)
+        elif not has_tournament_players:
+            st.warning("Please select a tournament and add participants first.")
+            st.button("Distribute Players", disabled=True, use_container_width=True)
         else:
-            st.info("Click 'Distribute Players' to allocate players to courts.")
+            col1, col2, col3 = st.columns([1, 2, 1])
+            with col2:
+                if st.button("Distribute Players", key="btn_distribute_main", use_container_width=True):
+                    st.session_state.courts = ca.distribute_players()
+                    st.rerun()
 
         # Game timer controls
         st.header("Game Timer")
@@ -231,12 +262,24 @@ with tab1:
                 st.rerun()
         
         with col_btn3:
-            if st.button("Distribute Players", use_container_width=True):
+            # Check if tournament is active and has participants
+            button_disabled = False
+            if active_tournament_id is None:
+                button_disabled = True
+            else:
+                # Find the tournament in the list
+                tournament = next((t for t in st.session_state.tournaments_list if t['id'] == active_tournament_id), None)
+                if not tournament or 'participants' not in tournament or not tournament['participants']:
+                    button_disabled = True
+            
+            if st.button("Distribute Players", use_container_width=True, disabled=button_disabled):
                 st.session_state.courts = ca.distribute_players()
                 st.rerun()
                 
         with col_btn4:
-            if st.button("Rotate Players", use_container_width=True):
+            # Only enable rotate if courts exist
+            has_courts = 'courts' in st.session_state and st.session_state.courts
+            if st.button("Rotate Players", use_container_width=True, disabled=not has_courts):
                 ca.rotate_players()
                 st.rerun()
 
@@ -294,6 +337,16 @@ if st.session_state.get('show_results_notification', False):
     st.success("Time's up! Game results have been automatically generated. Review and save them.")
     # Reset notification on next page refresh
     st.session_state.show_results_notification = False
+
+# Save tournaments to disk before closing app
+try:
+    import os
+    import json
+    tournaments_file = './.tournaments_data.json'
+    with open(tournaments_file, 'w') as f:
+        json.dump(st.session_state.tournaments_list, f)
+except Exception as e:
+    print(f"Error saving tournaments: {e}")
 
 # Enable auto-refresh if timer is active
 enable_auto_refresh()

@@ -965,92 +965,9 @@ def display_tournament():
     tournament_tabs = st.tabs(["Tournament List", "Tournament History"])
     
     with tournament_tabs[0]:
-        # Отображаем текущий турнир
-        if 'tournament_data' not in st.session_state or st.session_state.tournament_data['status'] == 'setup':
-            display_tournament_setup()
-        else:
-            # Показываем информацию о текущем турнире
-            active_tournament_id = st.session_state.get('active_tournament_id')
-            
-            # Информация о текущей игре и общей продолжительности
-            col1, col2, col3 = st.columns([2, 2, 1])
-            
-            with col1:
-                tournament_data = st.session_state.tournament_data
-                current_round = tournament_data['current_round'] + 1
-                total_rounds = len(tournament_data['rounds'])
-                
-                # Находим номер текущей игры
-                current_game = 0
-                for r in range(tournament_data['current_round']):
-                    current_game += len(tournament_data['rounds'][r]['matches'])
-                    
-                # Добавляем текущие активные матчи
-                for match_idx in tournament_data['rounds'][tournament_data['current_round']]['matches']:
-                    if tournament_data['matches'][match_idx]['status'] == 'completed':
-                        current_game += 1
-                
-                # Общее количество игр
-                total_games = sum(len(round_data['matches']) for round_data in tournament_data['rounds'])
-                
-                # Отображаем прогресс турнира
-                st.metric("Турнир", f"{tournament_data.get('name', 'Без названия')} (Раунд {current_round}/{total_rounds})")
-                st.metric("Текущая игра", f"{current_game}/{total_games}")
-            
-            with col2:
-                # Если есть активный турнир, показываем его таймер
-                if active_tournament_id:
-                    # Получаем значения для отображения таймера
-                    elapsed_minutes, elapsed_seconds, remaining_minutes, remaining_seconds = calculate_tournament_time(active_tournament_id)
-                    
-                    # Форматируем строки для отображения
-                    elapsed_str = f"{elapsed_minutes:02d}:{elapsed_seconds:02d}"
-                    remaining_str = f"{remaining_minutes:02d}:{remaining_seconds:02d}"
-                    
-                    # Отображаем таймер
-                    st.metric("Время турнира", elapsed_str)
-                    st.metric("Осталось времени", remaining_str)
-                    
-                    # Получаем текущий статус турнира
-                    tournament = next((t for t in st.session_state.tournaments_list if t['id'] == active_tournament_id), None)
-                    if tournament:
-                        is_paused = tournament['pause_time'] is not None
-                        
-                        # Кнопки управления таймером
-                        if is_paused:
-                            if st.button("Возобновить турнир", key="resume_tournament"):
-                                resume_tournament_timer(active_tournament_id)
-                                st.rerun()
-                        else:
-                            if st.button("Приостановить турнир", key="pause_tournament"):
-                                pause_tournament_timer(active_tournament_id)
-                                st.rerun()
-            
-            with col3:
-                # Кнопка для начала нового турнира
-                if st.button("Новый турнир"):
-                    # Сбрасываем данные турнира
-                    st.session_state.tournament_data = {
-                        'created_at': datetime.now(),
-                        'status': 'setup',
-                        'name': '',
-                        'bracket_type': 'single',
-                        'rounds': [],
-                        'current_round': 0,
-                        'matches': [],
-                        'player_ids': [],
-                        'winners': [],
-                        'runner_ups': []
-                    }
-                    st.rerun()
-            
-            # Отображаем турнирную сетку
-            display_tournament_bracket()
-    
-    with tournament_tabs[0]:
         # Display list of all tournaments
         display_tournaments_list()
-        
+            
     with tournament_tabs[1]:
         # Display tournament history
         display_tournament_history()

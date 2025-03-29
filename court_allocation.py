@@ -202,11 +202,11 @@ def display_courts(courts, players_df):
                 
                 if not court['is_rest'] and team_a_score is not None and team_b_score is not None:
                     if team_a_score > team_b_score:
-                        team_a_style = f"background-color: {winner_bg}; padding: 8px; border-radius: 4px;"
-                        team_b_style = f"background-color: {loser_bg}; padding: 8px; border-radius: 4px;"
+                        team_a_style = f"background-color: {winner_bg}; padding: 8px; border-radius: 4px; color: #004d00;" 
+                        team_b_style = f"background-color: {loser_bg}; padding: 8px; border-radius: 4px; color: #664d00;"
                     elif team_b_score > team_a_score:
-                        team_a_style = f"background-color: {loser_bg}; padding: 8px; border-radius: 4px;"
-                        team_b_style = f"background-color: {winner_bg}; padding: 8px; border-radius: 4px;"
+                        team_a_style = f"background-color: {loser_bg}; padding: 8px; border-radius: 4px; color: #664d00;"
+                        team_b_style = f"background-color: {winner_bg}; padding: 8px; border-radius: 4px; color: #004d00;"
                 
                 with cols[col]:
                     with st.container(border=True):
