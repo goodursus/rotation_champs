@@ -51,7 +51,10 @@ def manage_players():
                         st.warning(f"Tournament player limit ({limit}) reached. Cannot add more players.")
         else:
             st.warning("No participants added to this tournament yet.")
-            st.button("Add Players", key="btn_add_players", on_click=lambda: st.session_state.update({"show_tournament_tab": True}))
+            # Изменяем переменную, чтобы переключиться на вкладку Tournament (tab3)
+            if st.button("Add Players", key="btn_add_players"):
+                st.session_state.active_tab = 2  # Индекс вкладки Tournament
+                st.rerun()
         
         return
     

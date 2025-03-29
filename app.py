@@ -110,11 +110,19 @@ if 'elapsed_pause_time' not in st.session_state:
 if 'matchmaking_strategy' not in st.session_state:
     st.session_state.matchmaking_strategy = 'Random Distribution'
 
+# Проверяем, есть ли установленная active_tab
+if 'active_tab' not in st.session_state:
+    st.session_state.active_tab = 0  # По умолчанию открываем первую вкладку
+
 # Main application layout
 st.title("Rotation Players")
 
 # Create tabs for separating content
 tab1, tab2, tab3, tab4, tab5 = st.tabs(["Courts & Timer", "Player Statistics", "Tournament", "Leaderboard", "Court Designer"])
+
+# Проверяем, нужно ли переключиться на другую вкладку
+# Это сработает только если пользователь нажал кнопку, которая меняет active_tab
+# и затем происходит rerun()
 
 with tab1:
     # Create layout with two columns
