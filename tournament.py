@@ -271,7 +271,7 @@ def display_tournament_setup():
             
         # Кнопка для генерации турнирной сетки
         if can_start:
-            if st.button("Создать турнирную сетку"):
+            if st.button("Создать турнирную сетку", key="create_tournament_bracket"):
                 # Генерируем турнирную сетку
                 tournament_data = generate_bracket(tournament_data, selected_players)
                 tournament_data['status'] = 'active'
@@ -636,6 +636,11 @@ def display_tournaments_list():
                     if tournament_idx is not None:
                         # Удаляем турнир
                         st.session_state.tournaments_list.pop(tournament_idx)
+                        
+                        # Сохраняем данные в файл
+                        from storage import save_tournaments_data
+                        save_tournaments_data()
+                        
                         st.success("Турнир успешно удален!")
                         
                         # Если был выбран удаленный турнир, сбрасываем выбор
@@ -752,6 +757,10 @@ def display_tournaments_list():
                     
                     # В любом случае обновляем количество игроков
                     st.session_state.tournaments_list[tournament_idx]['players_count'] = row['players_count']
+            
+            # Сохраняем данные в файл после внесения изменений
+            from storage import save_tournaments_data
+            save_tournaments_data()
     else:
         st.info("Нет доступных турниров")
     
@@ -769,7 +778,7 @@ def display_tournaments_list():
     
     new_players_count = st.number_input("Количество участников", min_value=4, max_value=64, value=22, key="new_tournament_players_count")
     
-    if st.button("Создать турнир"):
+    if st.button("Создать турнир", key="btn_create_tournament"):
         # Создаем новый ID как максимальный + 1
         new_id = 1
         if st.session_state.tournaments_list:
@@ -795,6 +804,11 @@ def display_tournaments_list():
         
         # Добавляем в список
         st.session_state.tournaments_list.append(new_tournament)
+        
+        # Сохраняем данные в файл
+        from storage import save_tournaments_data
+        save_tournaments_data()
+        
         st.success("Турнир успешно создан!")
         st.rerun()
 
@@ -827,6 +841,10 @@ def start_tournament_timer(tournament_id):
         # Сохраняем активный турнир в сессию
         st.session_state.active_tournament_id = tournament_id
         
+        # Сохраняем данные в файл
+        from storage import save_tournaments_data
+        save_tournaments_data()
+        
 def pause_tournament_timer(tournament_id):
     """
     Приостанавливает таймер указанного турнира
@@ -843,6 +861,10 @@ def pause_tournament_timer(tournament_id):
     if tournament_idx is not None and st.session_state.tournaments_list[tournament_idx]['start_time'] is not None:
         # Записываем время паузы
         st.session_state.tournaments_list[tournament_idx]['pause_time'] = datetime.now()
+        
+        # Сохраняем данные в файл
+        from storage import save_tournaments_data
+        save_tournaments_data()
 
 def resume_tournament_timer(tournament_id):
     """
@@ -864,6 +886,10 @@ def resume_tournament_timer(tournament_id):
         st.session_state.tournaments_list[tournament_idx]['elapsed_pause_time'] += pause_duration
         # Сбрасываем время паузы
         st.session_state.tournaments_list[tournament_idx]['pause_time'] = None
+        
+        # Сохраняем данные в файл
+        from storage import save_tournaments_data
+        save_tournaments_data()
 
 def calculate_tournament_time(tournament_id):
     """
@@ -923,6 +949,10 @@ def calculate_tournament_time(tournament_id):
         if tournament_idx is not None:
             # Обновляем статус на завершенный
             st.session_state.tournaments_list[tournament_idx]['status'] = 'completed'
+            
+            # Сохраняем данные в файл
+            from storage import save_tournaments_data
+            save_tournaments_data()
     
     return elapsed_minutes, elapsed_seconds, remaining_minutes, remaining_seconds
 

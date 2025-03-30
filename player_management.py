@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import storage
 
 def manage_players():
     """
@@ -118,6 +119,9 @@ def manage_players():
                 })
             
             st.session_state.players_df = pd.concat([st.session_state.players_df, new_players], ignore_index=True)
+            
+            # Сохраняем обновленные данные
+            storage.save_players_data()
         else:
             # Players removed
             # Find names that were in the original but not in the edited
@@ -128,6 +132,9 @@ def manage_players():
             # Remove those players
             st.session_state.players_df = st.session_state.players_df[~st.session_state.players_df['name'].isin(removed_names)]
             
+            # Сохраняем обновленные данные
+            storage.save_players_data()
+            
     # Update player information
     st.session_state.players_df['name'] = edited_df['name'].values
     st.session_state.players_df['email'] = edited_df['email'].values
@@ -135,6 +142,9 @@ def manage_players():
     
     # Recalculate ratings after changes
     calculate_ratings()
+    
+    # Сохраняем данные игроков
+    storage.save_players_data()
 
 def calculate_ratings():
     """
@@ -280,6 +290,10 @@ def update_player_stats(court_idx, team_a_score, team_b_score):
     
     # Recalculate ratings
     calculate_ratings()
+    
+    # Сохраняем обновленные данные игроков и историю игр
+    storage.save_players_data()
+    storage.save_game_history()
 
 def save_game_history(court_idx, court, team_a_score, team_b_score):
     """

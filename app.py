@@ -10,6 +10,7 @@ import tournament as tr
 import player_matching as match
 import court_designer as designer
 import leaderboard as lb
+import storage
 
 # Set page configuration
 st.set_page_config(
@@ -36,54 +37,9 @@ else:
     if st.session_state.get('game_active', False) and not st.session_state.get('game_paused', True):
         st.session_state.update_counter += 1
 
-# Initialize session state variables if they don't exist
-if 'players_df' not in st.session_state:
-    # Initialize with sample players for example (14 players)
-    st.session_state.players_df = pd.DataFrame({
-        'id': list(range(1, 15)),
-        'name': [f"Player {i}" for i in range(1, 15)],
-        'email': [""] * 14,  # New field for email
-        'phone': [""] * 14,  # New field for phone
-        'wins': [0] * 14,
-        'losses': [0] * 14,
-        'points_difference': [0] * 14,
-        'rating': [0] * 14
-    })
+# Инициализация session state будет происходить в storage.initialize_storage()
 
-# Load tournaments from disk if available
-if 'tournaments_list' not in st.session_state:
-    try:
-        import os
-        import json
-        from datetime import datetime
-        
-        # Function to parse ISO format datetime strings
-        def parse_datetime(json_dict):
-            for key, value in json_dict.items():
-                if isinstance(value, str) and 'T' in value and value.count('-') >= 2:
-                    try:
-                        json_dict[key] = datetime.fromisoformat(value)
-                    except ValueError:
-                        pass
-                elif isinstance(value, dict):
-                    parse_datetime(value)
-                elif isinstance(value, list):
-                    for item in value:
-                        if isinstance(item, dict):
-                            parse_datetime(item)
-            return json_dict
-        
-        tournaments_file = './.tournaments_data.json'
-        if os.path.exists(tournaments_file):
-            with open(tournaments_file, 'r') as f:
-                tournaments_data = json.load(f)
-                # Process datetime strings
-                for tournament in tournaments_data:
-                    parse_datetime(tournament)
-                st.session_state.tournaments_list = tournaments_data
-    except Exception as e:
-        print(f"Error loading tournaments: {e}")
-        st.session_state.tournaments_list = []
+# Загрузка данных будет происходить в storage.initialize_storage()
 
 if 'courts' not in st.session_state:
     st.session_state.courts = []
@@ -388,22 +344,13 @@ if st.session_state.get('show_results_notification', False):
     # Reset notification on next page refresh
     st.session_state.show_results_notification = False
 
-# Save tournaments to disk before closing app
-try:
-    import os
-    import json
-    from datetime import datetime
-    
-    def datetime_serializer(obj):
-        if isinstance(obj, datetime):
-            return obj.isoformat()
-        raise TypeError(f"Type {type(obj)} not serializable")
-    
-    tournaments_file = './.tournaments_data.json'
-    with open(tournaments_file, 'w') as f:
-        json.dump(st.session_state.tournaments_list, f, default=datetime_serializer)
-except Exception as e:
-    print(f"Error saving tournaments: {e}")
+# Сохранение данных происходит через storage.auto_save_data()
+
+# Инициализация хранилища при запуске
+storage.initialize_storage()
+
+# Автоматическое сохранение данных
+storage.auto_save_data()
 
 # Enable auto-refresh if timer is active
 enable_auto_refresh()
