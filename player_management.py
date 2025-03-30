@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import storage
+from datetime import datetime
 
 def manage_players():
     """
@@ -96,8 +97,12 @@ def manage_players():
                 'phone': edited_df.iloc[-num_new_players:]['phone'].values if 'phone' in edited_df.columns else [""] * num_new_players,
                 'wins': [0] * num_new_players,
                 'losses': [0] * num_new_players,
+                'points_won': [0] * num_new_players,
+                'points_lost': [0] * num_new_players,
                 'points_difference': [0] * num_new_players,
-                'rating': [0] * num_new_players
+                'rating': [0] * num_new_players,
+                'created_at': [datetime.now().strftime("%Y-%m-%d %H:%M:%S")] * num_new_players,
+                'last_played': [""] * num_new_players
             })
             
             # Инициализируем историю рейтинга для новых игроков
@@ -105,7 +110,6 @@ def manage_players():
                 st.session_state.rating_history = {}
                 
             # Получаем текущее время для записи в историю
-            from datetime import datetime
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 
             # Создаем начальную запись рейтинга для каждого нового игрока
@@ -151,11 +155,21 @@ def calculate_ratings():
     Calculate player ratings based on wins, losses and point differences
     """
     if len(st.session_state.players_df) > 0:
+        # Проверяем и инициализируем все необходимые колонки
+        for col in ['wins', 'losses', 'points_won', 'points_lost', 'points_difference']:
+            if col not in st.session_state.players_df.columns:
+                st.session_state.players_df[col] = 0
+        
+        # Проверяем, нужно ли вычислить points_difference
+        if 'points_difference' not in st.session_state.players_df.columns:
+            st.session_state.players_df['points_difference'] = st.session_state.players_df['points_won'] - st.session_state.players_df['points_lost']
+        
         # Сохраняем предыдущие рейтинги для отслеживания изменений
         old_ratings = {}
-        if 'players_df' in st.session_state:
+        if 'rating' in st.session_state.players_df.columns:
             for _, row in st.session_state.players_df.iterrows():
-                old_ratings[row['id']] = row['rating']
+                if 'id' in row and 'rating' in row:
+                    old_ratings[row['id']] = row['rating']
         
         # Simple rating formula: (wins - losses) + (points_difference / 100)
         st.session_state.players_df['rating'] = (
@@ -169,7 +183,6 @@ def calculate_ratings():
             st.session_state.rating_history = {}
             
         # Получаем текущее время для записи в историю
-        from datetime import datetime
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             
         # Обновляем историю рейтингов для каждого игрока
@@ -195,12 +208,28 @@ def display_player_stats():
     """
     Display player statistics sorted by rating
     """
-    # Sort players by rating
-    sorted_df = st.session_state.players_df.sort_values(by='rating', ascending=False).reset_index(drop=True)
+    # Проверяем, есть ли колонка 'rating'
+    if 'rating' not in st.session_state.players_df.columns:
+        # Вызываем пересчет рейтингов
+        calculate_ratings()
+    
+    # Если players_df пуст или все равно нет рейтинга, добавляем колонку с нулями
+    if 'rating' not in st.session_state.players_df.columns:
+        st.session_state.players_df['rating'] = 0.0
+    
+    # Копируем датафрейм перед сортировкой
+    sorted_df = st.session_state.players_df.copy()
     
     # Вычисляем разницу очков если этой колонки нет
     if 'points_difference' not in sorted_df.columns:
-        sorted_df['points_difference'] = sorted_df['points_won'] - sorted_df['points_lost']
+        # Проверяем наличие колонок points_won и points_lost
+        if 'points_won' in sorted_df.columns and 'points_lost' in sorted_df.columns:
+            sorted_df['points_difference'] = sorted_df['points_won'] - sorted_df['points_lost']
+        else:
+            sorted_df['points_difference'] = 0
+    
+    # Сортируем по рейтингу
+    sorted_df = sorted_df.sort_values(by='rating', ascending=False).reset_index(drop=True)
     
     # Add rank column
     sorted_df.insert(0, 'rank', range(1, len(sorted_df) + 1))
@@ -271,6 +300,11 @@ def update_player_stats(court_idx, team_a_score, team_b_score):
     if 'points_difference' not in st.session_state.players_df.columns:
         st.session_state.players_df['points_difference'] = st.session_state.players_df['points_won'] - st.session_state.players_df['points_lost']
     
+    # Проверяем наличие колонок points_won и points_lost
+    for col in ['points_won', 'points_lost']:
+        if col not in st.session_state.players_df.columns:
+            st.session_state.players_df[col] = 0
+    
     # Update stats for team A
     for player_id in team_a_ids:
         player_idx = st.session_state.players_df.loc[st.session_state.players_df['id'] == player_id].index[0]
@@ -279,8 +313,19 @@ def update_player_stats(court_idx, team_a_score, team_b_score):
             st.session_state.players_df.at[player_idx, 'wins'] += 1
         else:
             st.session_state.players_df.at[player_idx, 'losses'] += 1
-            
-        st.session_state.players_df.at[player_idx, 'points_difference'] += score_diff
+        
+        # Обновляем количество набранных и пропущенных очков
+        st.session_state.players_df.at[player_idx, 'points_won'] += team_a_score
+        st.session_state.players_df.at[player_idx, 'points_lost'] += team_b_score
+        
+        # Обновляем разницу очков
+        st.session_state.players_df.at[player_idx, 'points_difference'] = (
+            st.session_state.players_df.at[player_idx, 'points_won'] - 
+            st.session_state.players_df.at[player_idx, 'points_lost']
+        )
+        
+        # Обновляем дату последней игры
+        st.session_state.players_df.at[player_idx, 'last_played'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
     # Update stats for team B
     for player_id in team_b_ids:
@@ -290,8 +335,19 @@ def update_player_stats(court_idx, team_a_score, team_b_score):
             st.session_state.players_df.at[player_idx, 'wins'] += 1
         else:
             st.session_state.players_df.at[player_idx, 'losses'] += 1
-            
-        st.session_state.players_df.at[player_idx, 'points_difference'] -= score_diff
+        
+        # Обновляем количество набранных и пропущенных очков
+        st.session_state.players_df.at[player_idx, 'points_won'] += team_b_score
+        st.session_state.players_df.at[player_idx, 'points_lost'] += team_a_score
+        
+        # Обновляем разницу очков
+        st.session_state.players_df.at[player_idx, 'points_difference'] = (
+            st.session_state.players_df.at[player_idx, 'points_won'] - 
+            st.session_state.players_df.at[player_idx, 'points_lost']
+        )
+        
+        # Обновляем дату последней игры
+        from datetime import datetime
     
     # Сохраняем историю игры
     save_game_history(court_idx, court, team_a_score, team_b_score)
@@ -333,8 +389,7 @@ def save_game_history(court_idx, court, team_a_score, team_b_score):
             }
     
     # Создаем запись о новой игре
-    from datetime import datetime
-    
+    # Уже импортировано в начале файла
     game_record = {
         'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         'court_number': court.get('court_number', court_idx + 1),
