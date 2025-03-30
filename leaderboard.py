@@ -211,36 +211,30 @@ def display_leaderboard():
     html_table += f'<div class="leaderboard-timestamp">Обновлено: {current_time}</div>'
     html_table += '</div>'
     
-    # Отображаем таблицу лидеров в двух вариантах:
-    # 1. Стандартный вид с помощью Streamlit компонентов
-    with st.expander("Стандартный вид таблицы лидеров", expanded=True):
-        # Создаем новый dataframe для отображения только нужных колонок
-        display_df = df[['position', 'name', 'wins', 'losses', 'win_rate_pct', 'rating', 'position_change']].copy()
-        
-        # Форматируем изменение позиции для читаемости
-        display_df['position_change'] = display_df['position_change'].apply(
-            lambda x: f"▲{x}" if x > 0 else (f"▼{abs(x)}" if x < 0 else "-")
-        )
-        
-        # Отображаем таблицу
-        st.dataframe(
-            display_df,
-            column_config={
-                'position': st.column_config.NumberColumn("Место", format="%d"),
-                'name': "Имя игрока",
-                'wins': "Победы",
-                'losses': "Поражения",
-                'win_rate_pct': st.column_config.NumberColumn("% побед", format="%.1f%%"),
-                'rating': st.column_config.NumberColumn("Рейтинг", format="%.2f"),
-                'position_change': "Изменение"
-            },
-            hide_index=True,
-            use_container_width=True
-        )
+    # Отображаем таблицу лидеров в стандартном виде
+    # Создаем новый dataframe для отображения только нужных колонок
+    display_df = df[['position', 'name', 'wins', 'losses', 'win_rate_pct', 'rating', 'position_change']].copy()
     
-    # 2. Анимированный HTML вид (опционально)
-    with st.expander("Анимированный вид таблицы лидеров", expanded=False):
-        st.markdown(html_table, unsafe_allow_html=True)
+    # Форматируем изменение позиции для читаемости
+    display_df['position_change'] = display_df['position_change'].apply(
+        lambda x: f"▲{x}" if x > 0 else (f"▼{abs(x)}" if x < 0 else "-")
+    )
+    
+    # Отображаем таблицу
+    st.dataframe(
+        display_df,
+        column_config={
+            'position': st.column_config.NumberColumn("Место", format="%d"),
+            'name': "Имя игрока",
+            'wins': "Победы",
+            'losses': "Поражения",
+            'win_rate_pct': st.column_config.NumberColumn("% побед", format="%.1f%%"),
+            'rating': st.column_config.NumberColumn("Рейтинг", format="%.2f"),
+            'position_change': "Изменение"
+        },
+        hide_index=True,
+        use_container_width=True
+    )
     
     # Добавляем опцию для автообновления таблицы лидеров
     st.checkbox(
@@ -257,12 +251,12 @@ def display_leaderboard():
 
 def display_leaderboard_animation_demo():
     """
-    Демонстрирует анимацию таблицы лидеров, симулируя изменения рейтинга
+    Демонстрирует механизм изменения позиций в таблице лидеров, симулируя изменения рейтинга
     """
-    st.markdown("### Демо анимации таблицы лидеров")
+    st.markdown("### Демо изменения позиций в таблице лидеров")
     st.markdown("""
-    Эта демонстрация показывает, как работает анимация изменения позиций в таблице лидеров.
-    Нажмите кнопку ниже, чтобы симулировать изменение рейтингов игроков и увидеть анимацию.
+    Эта демонстрация показывает, как работает механизм изменения позиций в таблице лидеров.
+    Нажмите кнопку ниже, чтобы симулировать изменение рейтингов игроков и увидеть обновленную таблицу.
     """)
     
     # Кнопка для запуска симуляции
@@ -286,7 +280,7 @@ def display_leaderboard_animation_demo():
         st.session_state.players_df = df
         
         # Показываем уведомление
-        st.success("Рейтинги игроков обновлены! Посмотрите анимацию в таблице лидеров.")
+        st.success("Рейтинги игроков обновлены! Проверьте изменения в таблице лидеров.")
         
         # Перезагружаем страницу для отображения изменений
         time.sleep(0.5)  # Небольшая задержка для лучшего UX
