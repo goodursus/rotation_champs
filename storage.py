@@ -59,7 +59,7 @@ def load_players_data():
         # Возвращаем пустой DataFrame с нужными колонками
         return pd.DataFrame(columns=[
             'id', 'name', 'phone', 'email', 'rating', 
-            'wins', 'losses', 'points_won', 'points_lost', 
+            'wins', 'losses', 'points_won', 'points_lost', 'points_difference',
             'created_at', 'last_played'
         ])
 
@@ -210,6 +210,15 @@ def initialize_storage():
     # Инициализируем данные игроков
     if 'players_df' not in st.session_state:
         st.session_state.players_df = load_players_data()
+        
+        # Проверяем, есть ли колонка points_difference
+        if 'points_difference' not in st.session_state.players_df.columns and len(st.session_state.players_df) > 0:
+            # Если есть колонки points_won и points_lost, создаем points_difference
+            if 'points_won' in st.session_state.players_df.columns and 'points_lost' in st.session_state.players_df.columns:
+                st.session_state.players_df['points_difference'] = st.session_state.players_df['points_won'] - st.session_state.players_df['points_lost']
+            else:
+                # Иначе инициализируем нулями
+                st.session_state.players_df['points_difference'] = 0
     
     # Инициализируем историю игр
     if 'game_history' not in st.session_state:

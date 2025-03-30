@@ -37,9 +37,10 @@ else:
     if st.session_state.get('game_active', False) and not st.session_state.get('game_paused', True):
         st.session_state.update_counter += 1
 
-# Инициализация session state будет происходить в storage.initialize_storage()
+# Инициализация хранилища при запуске (перенесено в начало файла)
+storage.initialize_storage()
 
-# Загрузка данных будет происходить в storage.initialize_storage()
+# Инициализация session state и загрузка данных произошла в storage.initialize_storage()
 
 if 'courts' not in st.session_state:
     st.session_state.courts = []
@@ -346,8 +347,7 @@ if st.session_state.get('show_results_notification', False):
 
 # Сохранение данных происходит через storage.auto_save_data()
 
-# Инициализация хранилища при запуске
-storage.initialize_storage()
+# Инициализация хранилища уже произошла в начале файла
 
 # Автоматическое сохранение данных
 storage.auto_save_data()

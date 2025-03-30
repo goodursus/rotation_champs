@@ -198,6 +198,10 @@ def display_player_stats():
     # Sort players by rating
     sorted_df = st.session_state.players_df.sort_values(by='rating', ascending=False).reset_index(drop=True)
     
+    # Вычисляем разницу очков если этой колонки нет
+    if 'points_difference' not in sorted_df.columns:
+        sorted_df['points_difference'] = sorted_df['points_won'] - sorted_df['points_lost']
+    
     # Add rank column
     sorted_df.insert(0, 'rank', range(1, len(sorted_df) + 1))
     
@@ -262,6 +266,10 @@ def update_player_stats(court_idx, team_a_score, team_b_score):
     team_b_ids = court['team_b']
     
     score_diff = team_a_score - team_b_score
+    
+    # Проверяем, существует ли колонка points_difference
+    if 'points_difference' not in st.session_state.players_df.columns:
+        st.session_state.players_df['points_difference'] = st.session_state.players_df['points_won'] - st.session_state.players_df['points_lost']
     
     # Update stats for team A
     for player_id in team_a_ids:
