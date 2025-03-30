@@ -202,11 +202,15 @@ def display_courts(courts, players_df):
                 
                 if not court['is_rest'] and team_a_score is not None and team_b_score is not None:
                     if team_a_score > team_b_score:
-                        team_a_style = f"background-color: {winner_bg}; padding: 8px; border-radius: 4px; color: #004d00;" 
-                        team_b_style = f"background-color: {loser_bg}; padding: 8px; border-radius: 4px; color: #664d00;"
+                        # Победители (команда A) - красным цветом
+                        team_a_style = f"background-color: {winner_bg}; padding: 8px; border-radius: 4px; color: red; font-weight: bold;" 
+                        # Проигравшие (команда B) - синим цветом
+                        team_b_style = f"background-color: {loser_bg}; padding: 8px; border-radius: 4px; color: blue;"
                     elif team_b_score > team_a_score:
-                        team_a_style = f"background-color: {loser_bg}; padding: 8px; border-radius: 4px; color: #664d00;"
-                        team_b_style = f"background-color: {winner_bg}; padding: 8px; border-radius: 4px; color: #004d00;"
+                        # Проигравшие (команда A) - синим цветом
+                        team_a_style = f"background-color: {loser_bg}; padding: 8px; border-radius: 4px; color: blue;"
+                        # Победители (команда B) - красным цветом
+                        team_b_style = f"background-color: {winner_bg}; padding: 8px; border-radius: 4px; color: red; font-weight: bold;"
                 
                 with cols[col]:
                     with st.container(border=True):
@@ -382,9 +386,32 @@ def record_game_results():
                 team_b_names = [st.session_state.players_df.loc[st.session_state.players_df['id'] == player_id, 'name'].values[0] 
                                 for player_id in court['team_b']]
                 
+                # Определяем, какая команда выигрывает (если есть счет)
+                team_a_score_key = f"team_a_score_{i}"
+                team_b_score_key = f"team_b_score_{i}"
+                
+                team_a_score_val = st.session_state.get(team_a_score_key, 0)
+                team_b_score_val = st.session_state.get(team_b_score_key, 0)
+                
+                # Определяем стили для команд на основе текущего счета
+                team_a_style = ""
+                team_b_style = ""
+                
+                if team_a_score_val > team_b_score_val:
+                    team_a_style = "color: red; font-weight: bold;"
+                    team_b_style = "color: blue;"
+                elif team_b_score_val > team_a_score_val:
+                    team_a_style = "color: blue;"
+                    team_b_style = "color: red; font-weight: bold;"
+                
                 col1, col2 = st.columns(2)
                 with col1:
-                    st.markdown(f"**Team A**: {', '.join(team_a_names)}")
+                    # Отображаем команду A с соответствующим стилем
+                    if team_a_style:
+                        st.markdown(f'<div style="{team_a_style}">**Team A**: {", ".join(team_a_names)}</div>', unsafe_allow_html=True)
+                    else:
+                        st.markdown(f"**Team A**: {', '.join(team_a_names)}")
+                    
                     team_a_score = st.number_input(
                         "Score", 
                         min_value=0, 
@@ -393,7 +420,12 @@ def record_game_results():
                     )
                 
                 with col2:
-                    st.markdown(f"**Team B**: {', '.join(team_b_names)}")
+                    # Отображаем команду B с соответствующим стилем
+                    if team_b_style:
+                        st.markdown(f'<div style="{team_b_style}">**Team B**: {", ".join(team_b_names)}</div>', unsafe_allow_html=True)
+                    else:
+                        st.markdown(f"**Team B**: {', '.join(team_b_names)}")
+                    
                     team_b_score = st.number_input(
                         "Score", 
                         min_value=0, 

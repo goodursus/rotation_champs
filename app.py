@@ -282,18 +282,34 @@ with tab1:
                 st.rerun()
 
     with col2:
-        # Player management section
-        st.header("Players")
+        # Информация о игроках раздела Courts & Timer
+        st.header("Active Players")
         
-        # Only show player management section if there's an active tournament or user requested it
+        # Показываем информацию об активных игроках, если есть активный турнир
         active_tournament_id = st.session_state.get('active_tournament_id')
-        if active_tournament_id is not None or st.session_state.get('show_player_management', False):
-            pm.manage_players()
+        if active_tournament_id is not None:
+            tournament = next((t for t in st.session_state.tournaments_list if t['id'] == active_tournament_id), None)
+            
+            if tournament and 'participants' in tournament and tournament['participants']:
+                # Получаем количество активных игроков
+                participants_count = len(tournament['participants'])
+                st.info(f"Active tournament has {participants_count} participants")
+                
+                # Добавляем сообщение о перемещении функционала
+                st.markdown("⚠️ **Player management has been moved to the Player Statistics tab.**")
+                
+                # Добавляем кнопку для быстрого перехода
+                if st.button("Go to Player Management", key="btn_go_to_player_mgmt"):
+                    st.session_state.active_tab = 1  # Индекс вкладки Player Statistics
+                    st.rerun()
+            else:
+                st.warning("No participants added to the tournament yet.")
+                # Ссылка на управление игроками
+                st.markdown("Add players in the Player Statistics tab.")
         else:
-            # Show button to display player management
-            if st.button("Show Player Management", key="btn_show_players"):
-                st.session_state.show_player_management = True
-                st.rerun()
+            st.info("No active tournament selected")
+            st.markdown("⚠️ Please select a tournament to start distributing players")
+            st.markdown("Player management is available in the Player Statistics tab.")
 
 with tab2:
     # Display player statistics
