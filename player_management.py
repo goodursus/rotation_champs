@@ -217,16 +217,21 @@ def display_player_stats():
     if 'rating' not in st.session_state.players_df.columns:
         st.session_state.players_df['rating'] = 0.0
     
+    # Проверяем наличие нужных колонок и добавляем их, если они отсутствуют
+    required_columns = ['name', 'wins', 'losses', 'points_won', 'points_lost', 'points_difference', 'rating', 'email', 'phone']
+    for col in required_columns:
+        if col not in st.session_state.players_df.columns:
+            st.session_state.players_df[col] = 0 if col not in ['name', 'email', 'phone'] else ''
+    
     # Копируем датафрейм перед сортировкой
     sorted_df = st.session_state.players_df.copy()
     
-    # Вычисляем разницу очков если этой колонки нет
-    if 'points_difference' not in sorted_df.columns:
-        # Проверяем наличие колонок points_won и points_lost
-        if 'points_won' in sorted_df.columns and 'points_lost' in sorted_df.columns:
-            sorted_df['points_difference'] = sorted_df['points_won'] - sorted_df['points_lost']
-        else:
-            sorted_df['points_difference'] = 0
+    # Вычисляем разницу очков если она не вычислена
+    if 'points_difference' in sorted_df.columns:
+        # Проверяем, есть ли нулевые значения в points_difference при ненулевых points_won/points_lost
+        mask = (sorted_df['points_difference'] == 0) & ((sorted_df['points_won'] > 0) | (sorted_df['points_lost'] > 0))
+        if mask.any():
+            sorted_df.loc[mask, 'points_difference'] = sorted_df.loc[mask, 'points_won'] - sorted_df.loc[mask, 'points_lost']
     
     # Сортируем по рейтингу
     sorted_df = sorted_df.sort_values(by='rating', ascending=False).reset_index(drop=True)
@@ -238,16 +243,20 @@ def display_player_stats():
     stats_tab, contact_tab = st.tabs(["Performance Statistics", "Player Contact Information"])
     
     with stats_tab:
-        # Display the sorted performance stats
-        st.dataframe(
-            sorted_df[['rank', 'name', 'wins', 'losses', 'points_difference', 'rating']],
-            use_container_width=True,
-            column_config={
-                "rank": "Rank",
-                "name": "Player Name",
-                "wins": "Wins",
-                "losses": "Losses",
-                "points_difference": "Points Difference",
+        # Проверяем, есть ли записи в таблице
+        if len(sorted_df) == 0:
+            st.info("Нет данных о игроках. Добавьте игроков на вкладке 'Player Management'.")
+        else:
+            # Display the sorted performance stats
+            st.dataframe(
+                sorted_df[['rank', 'name', 'wins', 'losses', 'points_difference', 'rating']],
+                use_container_width=True,
+                column_config={
+                    "rank": "Rank",
+                    "name": "Player Name",
+                    "wins": "Wins",
+                    "losses": "Losses",
+                    "points_difference": "Points Difference",
                 "rating": st.column_config.NumberColumn(
                     "Rating",
                     help="Player rating based on performance",
@@ -258,23 +267,27 @@ def display_player_stats():
         )
     
     with contact_tab:
-        # Display player contact information
-        st.dataframe(
-            sorted_df[['rank', 'name', 'email', 'phone', 'rating']],
-            use_container_width=True,
-            column_config={
-                "rank": "Rank",
-                "name": "Player Name",
-                "email": "Email",
-                "phone": "Phone",
-                "rating": st.column_config.NumberColumn(
-                    "Rating",
-                    help="Player rating based on performance",
-                    format="%.2f",
-                ),
-            },
-            hide_index=True,
-        )
+        # Проверяем, есть ли записи в таблице
+        if len(sorted_df) == 0:
+            st.info("Нет данных о игроках. Добавьте игроков на вкладке 'Player Management'.")
+        else:
+            # Display player contact information
+            st.dataframe(
+                sorted_df[['rank', 'name', 'email', 'phone', 'rating']],
+                use_container_width=True,
+                column_config={
+                    "rank": "Rank",
+                    "name": "Player Name",
+                    "email": "Email",
+                    "phone": "Phone",
+                    "rating": st.column_config.NumberColumn(
+                        "Rating",
+                        help="Player rating based on performance",
+                        format="%.2f",
+                    ),
+                },
+                hide_index=True,
+            )
 
 def update_player_stats(court_idx, team_a_score, team_b_score):
     """
@@ -347,7 +360,7 @@ def update_player_stats(court_idx, team_a_score, team_b_score):
         )
         
         # Обновляем дату последней игры
-        from datetime import datetime
+        st.session_state.players_df.at[player_idx, 'last_played'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
     # Сохраняем историю игры
     save_game_history(court_idx, court, team_a_score, team_b_score)
