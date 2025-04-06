@@ -280,7 +280,8 @@ with tab1:
                 st.session_state.game_ended = False
                 ca.rotate_players()
                 st.rerun()
-
+    
+    '''
     with col2:
         # Информация о игроках раздела Courts & Timer
         st.header("Active Players")
@@ -310,7 +311,7 @@ with tab1:
             st.info("No active tournament selected")
             st.markdown("⚠️ Please select a tournament to start distributing players")
             st.markdown("Player management is available in the Player Statistics tab.")
-
+    '''
 with tab2:
     # Display player statistics
     st.header("Player Statistics")
