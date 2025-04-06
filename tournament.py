@@ -553,7 +553,7 @@ def display_tournaments_list():
     """
     Отображает список всех турниров
     """
-    st.subheader("Список турниров")
+    st.subheader("Tournaments List")
     
     # Инициализируем список турниров, если он еще не создан
     if 'tournaments_list' not in st.session_state:

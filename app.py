@@ -312,6 +312,7 @@ with tab1:
             st.markdown("⚠️ Please select a tournament to start distributing players")
             st.markdown("Player management is available in the Player Statistics tab.")
     '''
+
 with tab2:
     # Display player statistics
     st.header("Player Statistics")
